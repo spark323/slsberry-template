@@ -1,0 +1,96 @@
+frameworkVersion: "3"
+service: [service-name]
+app: [app-name]
+useDotenv: true
+provider:
+  name: aws
+  runtime: nodejs16.x
+  deploymentMethod: direct
+  versionFunctions: false
+  iam:
+    role: DefaultRole
+  httpApi:
+    cors: true
+  stage: ${env:STAGE, "dev"}
+  tags:
+    Service: ${self:service}
+    Environment: ${env:STAGE, "dev"}
+  stackTags:
+    Service: ${self:service}
+    Environment: ${env:STAGE, "dev"}
+  region: ${opt:region, "ap-northeast-2"}
+  stackName: ${self:service}-${env:STAGE, "dev"}-${env:VER, "1"}-serverless
+  timeout: 20 #api gateway를 거칠 경우 lambda의 max
+  environment:
+    version: ${env:VER, "1"}
+    stage: ${env:STAGE, "dev"}
+    region: ${opt:region, "ap-northeast-2"}
+    app: ${self:app}
+  deploymentBucket:
+    name: ${aws:accountId}-serverless-deploys
+    maxPreviousDeploymentArtifacts: 5
+    blockPublicAccess: true
+  deploymentPrefix: ${self:service}-${env:STAGE, "dev"}-${env:VER, "1"}-serviceBackend
+plugins:
+  - serverless-deployment-bucket
+  - serverless-cloudformation-sub-variables
+
+resources: # CloudFormation template syntax
+  Resources:
+    DefaultRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${env:STAGE, "dev"}-${env:VER, "1"}-LambdaExcutionRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+            - Effect: Allow
+              Principal:
+                Service:
+                  - iam.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+          - arn:aws:iam::aws:policy/AmazonS3FullAccess
+          - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+          - arn:aws:iam::aws:policy/AmazonRDSDataFullAccess
+          - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        Policies:
+          - PolicyName: myPolicyName
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sts:AssumeRole
+                  Resource: "*"
+                #필요에 따라서 추가  
+                # - Effect: Allow
+                #   Action:
+                #     - logs:*
+                #   Resource: "*"
+    # WebsocketApigatewayParms:
+    #   Type: AWS::SSM::Parameter
+    #   Properties:
+    #     Name: /${self:service}/${env:STAGE, "dev"}/websocket_api_gateway_id/${env:VER, "1"}
+    #     Type: String
+    #     Value:
+    #       Ref: WebsocketsApi
+    #     Description: WobsocketAPIId
+    # ApigatewayParms:
+    #   Type: AWS::SSM::Parameter
+    #   Properties:
+    #     Name: /${self:service}/${env:STAGE, "dev"}/api_gateway_id/${env:VER, "1"}
+    #     Type: String
+    #     Value:
+    #       Ref: HttpApi
+    #     Description: ApiGatewayId
+
+custom:
+
+functions:
