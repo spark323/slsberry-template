@@ -9,13 +9,14 @@ const apiSpec = {
     event: [
         {
             type: 'REST',
-            method: 'Get',
+            method: 'Put',
         },
     ],
-    desc: '채팅 가져오기',
+    desc: 'DynamoDB 값을 넣는다.',
     parameters: {
-        room_id: { req: true, type: 'string', desc: 'room_id' },
-        user_id: { req: true, type: 'string', desc: 'user_id' },
+        company_name: { req: true, type: 'String', desc: '회사명' },
+        type: { req: true, type: 'String', desc: 'type' },
+        email: { req: true, type: 'String', desc: 'email' },
     },
     errors: {
         unexpected_error: { status_code: 500, reason: '알 수 없는 에러' },
@@ -26,28 +27,43 @@ const apiSpec = {
         schema: {
             type: 'object',
             properties: {
-
+                company_name: { type: 'String', desc: '회사명' },
+                type: { type: 'String', desc: 'type' },
+                email: { type: 'String', desc: 'email' },
+                range_key: { type: 'String', desc: 'range key' },
             },
         },
     },
 };
 exports.apiSpec = apiSpec;
 async function handler(inputObject, event) {
-    const { room_id, user_id } = inputObject;
+    const { email, company_name, type } = inputObject;
     var docClient = new AWS.DynamoDB.DocumentClient();
-    let dataItem = undefined;
+
+    const rangeKey = moment().valueOf();
+    const item = {
+        hash_key: "hash_test",
+        range_key: moment().valueOf(),
+        email: inputObject.email,
+        company_name: inputObject.company_name,
+        type: inputObject.type
+    };
     try {
-        dataItem = await ddbUtil.query(docClient, "chat-messages", ["room_id", "user_id"], [room_id, user_id])
+        await ddbUtil.put(docClient, "chat-messages", item);
     } catch (e) {
         console.error(e);
         return { predefinedError: apiSpec.errors.unexpected_error };
     }
+
     return {
         status: 200,
-        response: {
+        response: "ok",
+        data: {
+            hash_key: "hash_test",
+            rangeKey: rangeKey,
             ...inputObject
         }
-    };
+    }
 }
 exports.handler = async (event, context) => {
     return await handleHttpRequest(event, context, apiSpec, handler);

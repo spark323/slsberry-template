@@ -2,16 +2,17 @@ const AWS = require('aws-sdk');
 AWS.config.update({
     region: "ap-northeast-2"
 });
+var ddbUtil = require("../lib/ddbUtil");
 const { handleHttpRequest } = require('slsberry');
 const apiSpec = {
-    category: 'http',
+    category: 'chat',
     event: [
         {
             type: 'REST',
             method: 'Get',
         },
     ],
-    desc: 'GET Template',
+    desc: 'DynamoDB의 값을 조회한다.',
     parameters: {
         hash_key: { req: true, type: 'string', desc: 'hash_key' },
     },
@@ -24,7 +25,7 @@ const apiSpec = {
         schema: {
             type: 'object',
             properties: {
-                hashKey: { type: 'String', desc: 'hash_key' },
+
             },
         },
     },
@@ -32,12 +33,18 @@ const apiSpec = {
 exports.apiSpec = apiSpec;
 async function handler(inputObject, event) {
     const { hash_key } = inputObject;
-    //do something with inputs
-
+    var docClient = new AWS.DynamoDB.DocumentClient();
+    let dataItem = undefined;
+    try {
+        dataItem = await ddbUtil.query(docClient, "test-ddb", ["hash_key"], [hash_key])
+    } catch (e) {
+        console.error(e);
+        return { predefinedError: apiSpec.errors.unexpected_error };
+    }
     return {
         status: 200,
         response: {
-            ...inputObject
+            ...dataItem.Items
         }
     };
 }
