@@ -69,6 +69,45 @@ resources: # CloudFormation template syntax
                   Action:
                     - sts:AssumeRole
                   Resource: "*"
+    userListTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${env:STAGE, "dev"}-userlist
+        AttributeDefinitions:
+          - AttributeName: connection_id 
+            AttributeType: S
+          - AttributeName: room_id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connection_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: room_id-user_id-index
+            KeySchema:
+              - AttributeName: room_id
+                KeyType: HASH
+              - AttributeName: user_id
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+    messageTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${env:STAGE, "dev"}-chat-messages
+        AttributeDefinitions:
+          - AttributeName: room_id 
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: room_id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
                 #필요에 따라서 추가  
                 # - Effect: Allow
                 #   Action:
