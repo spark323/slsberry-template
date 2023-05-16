@@ -1,6 +1,6 @@
 frameworkVersion: "3"
-service: [service-name]
-app: [app-name]
+service: chatapp
+app: backend
 useDotenv: true
 provider:
   name: aws
