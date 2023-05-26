@@ -34,6 +34,10 @@ async function handler(inputObject, event) {
     const { hash_key } = inputObject;
     //do something with inputs
 
+    if (false) {
+        return { predefinedError: apiSpec.errors.unexpected_error };
+    }
+
     return {
         status: 200,
         response: {
