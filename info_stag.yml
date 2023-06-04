@@ -1,0 +1,16 @@
+info: 
+  title: [project_name]
+  description: demo project
+  version: 0.0.1
+  contact:
+    name: spark
+    mail: spark@rubywave.io
+    url: rubywave.io
+  license:
+    name: MIT
+    url: https://spdx.org/licenses/MIT  
+  summary:
+    this is a demo project
+servers:
+  - url: https://rubywave.io
+  database_id: [notion database id]
