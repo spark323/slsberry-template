@@ -3,7 +3,8 @@ const apiSpec = {
     category: 'Test',
     event: [
         {
-            type: 'Pure'
+            type: 'REST',
+            method: 'Get',
         },
     ],
     desc: '테스트 함수 ',
@@ -27,11 +28,22 @@ const apiSpec = {
         },
     },
 };
-
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
 exports.apiSpec = apiSpec;
 async function handler(inputObject, event) {
     console.log(event);
     const { input1, input2 } = inputObject;
+    console.log("1");
+    console.log("2");
+    console.log("3");
+
+    await sleep(1000 * 5 * 1);
+    console.log("4");
+    console.log("5");
     const data = {
         input1: input1,
         input2: input2,

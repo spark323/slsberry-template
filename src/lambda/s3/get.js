@@ -11,7 +11,7 @@ const apiSpec = {
             method: 'Get',
         },
     ],
-    desc: '현재 엔진 상태 조회',
+    desc: '현재  상태 조회',
     parameters: {
 
     },
