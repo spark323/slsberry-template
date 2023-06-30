@@ -1,6 +1,6 @@
-info: 
-  title: [project_name]
-  description: demo project
+info:
+  title: projectName
+  description: projectDescription
   version: 0.0.1
   contact:
     name: spark
@@ -8,9 +8,8 @@ info:
     url: rubywave.io
   license:
     name: MIT
-    url: https://spdx.org/licenses/MIT  
-  summary:
-    this is a demo project
+    url: https://spdx.org/licenses/MIT
+  summary: this is a demo for waiting-queue
 servers:
   - url: https://rubywave.io
-  database_id: [notion database id]
+database_id: 4803f792302e4c7bbd2124a55b117465
