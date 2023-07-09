@@ -8,4 +8,3 @@ yarn.lock
 yarn-error.log
 serverless.yml
 .serverless
-.env
