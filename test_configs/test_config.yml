@@ -1,22 +1,17 @@
-aws_profile: [profile name]
-app: [app_name]
+aws_profile: admin_rubywave_lecture_sandbox
+app: demo-http
 region: ap-northeast-2
 env:
-  key: test_value
-  key2: test_value2
-claimsProfiles:
-  test1:
-    email: tt1
-    sub: tt2
-  test2:
-    email: tt2
-    sub: tt3
+  counter_table_name: Demo-Counter-dev-1
+
+
 test_targets:
-  - uri: template/get.js
+  - uri: counter/put.js
     eventType: http
-    description: template get
-    method: get
+    description: put
+    method: put
     parms:
-      hash_key: innocentchris@gmail.com
+      counterId: mycounter
+      value: 2
     expect:
       checkType: check_200

@@ -1,0 +1,152 @@
+openapi: 3.0.0
+info:
+  title: demo-http-backend
+  description: this is a demo project
+  version: 0.0.1
+  contact:
+    name: spark
+    mail: spark@rubywave.io
+    url: rubywave.io
+  license:
+    name: MIT
+    url: https://spdx.org/licenses/MIT
+  summary: this is a demo for waiting-queue
+servers:
+  - url: https://rubywave.io
+paths:
+  /counter:
+    get:
+      description: 현재 지정한 카운터의 값을 가져온다.
+      security:
+        - bearerAuth:
+            - test
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: integer
+                    description: 현재 카운터의 값
+                  lastModified:
+                    type: string
+                    description: 가장 마지막으로 카운터를 업데이트 한 날짜(YYYY-MM-DD HH:mm:ss
+        '400':
+          description: invalid_counter_id
+        '500':
+          description: unexpected_error
+      parameters:
+        - name: counterId
+          in: query
+          description: 카운터 아이디
+          required: true
+          schema:
+            type: string
+    put:
+      description: 현재 지정한 카운터의 값을 업데이트 한다.
+      security:
+        - bearerAuth:
+            - test
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: integer
+                    description: 현재 카운터의 값
+        '400':
+          description: invalid_counter_id
+        '500':
+          description: unexpected_error
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - counterId
+                - value
+              properties:
+                counterId:
+                  description: 카운터 아이디
+                  type: string
+                value:
+                  description: 증감할 값
+                  type: integer
+  /template:
+    get:
+      description: GET Template
+      security:
+        - bearerAuth:
+            - test
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hashKey:
+                    type: string
+                    description: hash_key
+        '500':
+          description: unexpected_error
+      parameters:
+        - name: hash_key
+          in: query
+          description: hash_key
+          required: true
+          schema:
+            type: string
+  /s3:
+    get:
+      description: S3 버킷 목록을 출력하는 함수
+      security:
+        - bearerAuth:
+            - test
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                properties: {}
+                items:
+                  type: object
+                  properties:
+                    bucketName:
+                      type: String
+                      desc: 버킷이름
+        '400':
+          description: invalid_format
+        '500':
+          description: unexpected_error
+      parameters:
+        - name: userId
+          in: query
+          description: 유저 아이디
+          required: true
+          schema:
+            type: string
+        - name: excludeBucket
+          in: query
+          description: 제외할 버킷 이름
+          required: false
+          schema:
+            type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

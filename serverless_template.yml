@@ -1,6 +1,6 @@
 frameworkVersion: "3"
-service: [service-name]
-app: [app-name]
+service: demo-http-api
+app: backend
 useDotenv: true
 provider:
   name: aws
@@ -27,6 +27,7 @@ provider:
     stage: ${env:STAGE, "dev"}
     region: ${opt:region, "ap-northeast-2"}
     app: ${self:app}
+    counter_table_name: Demo-Counter-${env:STAGE, "dev"}-${env:VER, "1"}
   deploymentBucket:
     name: ${aws:accountId}-serverless-deploys
     maxPreviousDeploymentArtifacts: 5
@@ -38,6 +39,17 @@ plugins:
 
 resources: # CloudFormation template syntax
   Resources:
+    DemoCounterTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Demo-Counter-${env:STAGE, "dev"}-${env:VER, "1"}
+        AttributeDefinitions:
+          - AttributeName: counter_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: counter_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST  
     DefaultRole:
       Type: AWS::IAM::Role
       Properties:
