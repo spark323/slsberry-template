@@ -17,6 +17,19 @@ test_targets:
     description: template get
     method: get
     parms:
-      hash_key: innocentchris@gmail.com
+      hashKey: innocentchris@gmail.com
+      counter: 0
+    expect:
+      checkType: check_200
+    saveValue:
+      - path: counter
+        saveas: mem_counter
+  - uri: template/get.js
+    eventType: http
+    description: emplate get2
+    method: get
+    params:
+      hashKey: innocentchris@gmail.com
+      counter: "@mem_counter"
     expect:
       checkType: check_200

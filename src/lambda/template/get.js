@@ -13,7 +13,8 @@ const apiSpec = {
     ],
     desc: 'GET Template',
     parameters: {
-        hash_key: { req: true, type: 'string', desc: 'hash_key' },
+        hashKey: { req: true, type: 'string', desc: 'hash_key' },
+        counter: { req: true, type: 'integer', desc: 'counter' },
     },
     errors: {
         unexpected_error: { status_code: 500, reason: '알 수 없는 에러' },
@@ -31,7 +32,9 @@ const apiSpec = {
 };
 exports.apiSpec = apiSpec;
 async function handler(inputObject, event) {
-    const { hash_key } = inputObject;
+    const { hashKey, counter } = inputObject;
+
+    console.log(inputObject);
     //do something with inputs
 
     if (false) {
@@ -41,7 +44,9 @@ async function handler(inputObject, event) {
     return {
         status: 200,
         response: {
-            ...inputObject
+            ...inputObject,
+            counter: counter + 1
+
         }
     };
 }
