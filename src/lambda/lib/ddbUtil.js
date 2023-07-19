@@ -41,7 +41,7 @@ async function query(docClient, tableName, keys, keyvalues, options = {}) {
 
 
     var params = {
-        TableName: getTableName(tableName),
+        TableName: options.rawTableName ? tableName : getTableName(tableName),
         KeyConditionExpression: KeyConditionExpression,
         ExpressionAttributeNames: ExpressionAttributeNames,
         ExpressionAttributeValues: ExpressionAttributeValues
@@ -61,7 +61,7 @@ async function query(docClient, tableName, keys, keyvalues, options = {}) {
     if (options.hasOwnProperty("Limit")) {
         params["Limit"] = options.Limit;;
     }
-    //console.log("ddb_query", params);
+    console.log("ddb_query", params);
     return docClient.query(params).promise();
 }
 
@@ -117,8 +117,13 @@ async function update(docClient, tableName, keyMap, keys, keyvalues, options = {
         for (var i = 0; i < ConditionKeys.length; i++) {
             let key = ConditionKeys[i];
             let values = ConditionValues[i];
-            const sign = key.substr(0, 1);
-            key = key.substr(1, key.length - 1);
+            let sign = key.substr(0, 1);
+            let cursor = 1;
+            if (key.substr(1, 1) == ">" || key.substr(1, 1) == "=") {
+                sign += key.substr(1, 1)
+                cursor++;
+            }
+            key = key.substr(cursor, key.length - 1);
             ConditionExpression += "#" + key + " " + sign + " " + ":" + key + " ,";
             ExpressionAttributeNames["#" + key] = key + ""
             ExpressionAttributeValues[":" + key] = values;
@@ -133,11 +138,12 @@ async function update(docClient, tableName, keyMap, keys, keyvalues, options = {
 
     }
     var params = {
-        TableName: getTableName(tableName),
+        TableName: options.rawTableName ? tableName : getTableName(tableName),
         Key: keyMap,
         UpdateExpression: UpdateExpression,
         ExpressionAttributeNames: ExpressionAttributeNames,
-        ExpressionAttributeValues: ExpressionAttributeValues
+        ExpressionAttributeValues: ExpressionAttributeValues,
+        ReturnValues: (options.returnValues) ? "UPDATED_NEW" : "NONE"
     };
     if (ConditionExpression != undefined) {
         params["ConditionExpression"] = ConditionExpression;
@@ -145,33 +151,33 @@ async function update(docClient, tableName, keyMap, keys, keyvalues, options = {
 
 
 
-    //console.log("ddb_updating", params);
+    console.log("ddb_updating", params);
     return docClient.update(params).promise();
 }
-async function doDelete(docClient, tableName, keyMap) {
+async function doDelete(docClient, tableName, keyMap, options = {},) {
 
     var params = {
-        TableName: getTableName(tableName),
+        TableName: options.rawTableName ? tableName : getTableName(tableName),
         Key: keyMap,
 
     };
-    //console.log("ddb_deleting", params);
+    console.log("ddb_deleting", params);
     return docClient.delete(params).promise();
 }
-async function put(docClient, tableName, Item) {
+async function put(docClient, tableName, Item, options = {}) {
 
     var params = {
-        TableName: getTableName(tableName),
+        TableName: options.rawTableName ? tableName : getTableName(tableName),
         Item: Item
     };
 
-    //console.log("ddb_putting", params);
+    console.log("ddb_putting", params);
 
     return docClient.put(params).promise();
 }
 
 function getTableName(tableName) {
-    return `${process.env.service}-${process.env.stage}-${tableName}-${process.env.version}`;
+    return `${process.env.service}-${process.env.stage}-${tableName}`;
 }
 module.exports.put = put;
 module.exports.doDelete = doDelete;
