@@ -1,35 +1,33 @@
 /**
- * @author spark323 <innocentchris@gmail.com>
- * @version 0.0.2
+ * @author: youtube.com/@AWSClassroom
  */
+const { QueryCommand, ScanCommand, UpdateCommand, DeleteCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 
 async function query(docClient, tableName, keys, keyvalues, options = {}) {
 	let KeyConditionExpression = "";
 	let ExpressionAttributeNames = {};
 	let ExpressionAttributeValues = {};
 	let ProjectionExpression = "";
-	//hashkey
+
 	KeyConditionExpression = "#" + keys[0] + " = " + ":" + keys[0];
-	ExpressionAttributeNames["#" + keys[0]] = keys[0] + "";
+	ExpressionAttributeNames["#" + keys[0]] = keys[0];
 	ExpressionAttributeValues[":" + keys[0]] = keyvalues[0];
-	//rangeKey
+
 	if (keys.length > 1) {
 		if (options.lessThanRange) {
 			KeyConditionExpression += " AND #" + keys[1] + " < " + ":" + keys[1];
-			ExpressionAttributeNames["#" + keys[1]] = keys[1] + "";
-			ExpressionAttributeValues[":" + keys[1]] = keyvalues[1];
 		} else {
 			KeyConditionExpression += " AND #" + keys[1] + " = " + ":" + keys[1];
-			ExpressionAttributeNames["#" + keys[1]] = keys[1] + "";
-			ExpressionAttributeValues[":" + keys[1]] = keyvalues[1];
 		}
+		ExpressionAttributeNames["#" + keys[1]] = keys[1];
+		ExpressionAttributeValues[":" + keys[1]] = keyvalues[1];
 	}
 
 	if (options.hasOwnProperty("ProjectionExpression")) {
 		let list = options["ProjectionExpression"];
 		for (let i = 0; i < list.length; i++) {
 			let ck = list[i];
-			ExpressionAttributeNames["#" + ck] = ck + "";
+			ExpressionAttributeNames["#" + ck] = ck;
 			ProjectionExpression += "#" + ck + ",";
 		}
 		ProjectionExpression = ProjectionExpression.substr(0, ProjectionExpression.length - 1);
@@ -41,6 +39,7 @@ async function query(docClient, tableName, keys, keyvalues, options = {}) {
 		ExpressionAttributeNames: ExpressionAttributeNames,
 		ExpressionAttributeValues: ExpressionAttributeValues,
 	};
+
 	if (options.hasOwnProperty("IndexName")) {
 		params["IndexName"] = options.IndexName;
 	}
@@ -56,8 +55,9 @@ async function query(docClient, tableName, keys, keyvalues, options = {}) {
 	if (options.hasOwnProperty("Limit")) {
 		params["Limit"] = options.Limit;
 	}
-	console.log("ddb_query", params);
-	return docClient.query(params).promise();
+
+	const queryCommand = new QueryCommand(params);
+	return docClient.send(queryCommand);
 }
 
 async function scan(docClient, tableName) {
@@ -65,46 +65,37 @@ async function scan(docClient, tableName) {
 		TableName: getTableName(tableName),
 	};
 
-	console.log("ddb_scan", params);
-
-	return docClient.scan(params).promise();
+	const scanCommand = new ScanCommand(params);
+	return docClient.send(scanCommand);
 }
+
 async function update(docClient, tableName, keyMap, keys, keyvalues, options = {}, ConditionKeys = undefined, ConditionValues = undefined) {
-	let UpdateExpression = "";
+	let UpdateExpression = "set ";
 	let ExpressionAttributeNames = {};
 	let ExpressionAttributeValues = {};
 	let ConditionExpression = undefined;
-
-	UpdateExpression = "set ";
 
 	for (var i = 0; i < keys.length; i++) {
 		let key = keys[i];
 		let values = keyvalues[i];
 		const sign = key.substr(0, 1);
 
-		if (sign == "+") {
-			//increntmental
-			key = key.substr(1, key.length - 1);
-			const nextKey = keys[i + 1];
+		key = key.substr(sign === "+" || sign === "-" ? 1 : 0, key.length - 1);
+		const nextKey = keys[i + 1];
 
-			UpdateExpression += "#" + key + " = " + "#" + key + " + " + ":" + nextKey + " ,";
-			ExpressionAttributeNames["#" + key] = key + "";
-
+		if (sign === "+") {
+			UpdateExpression += "#" + key + " = #" + key + " + :" + nextKey + " ,";
+			ExpressionAttributeNames["#" + key] = key;
 			ExpressionAttributeValues[":" + nextKey] = values;
 			i++;
-		} else if (sign == "-") {
-			//decrentmental
-			key = key.substr(1, key.length - 1);
-			const nextKey = keys[i + 1];
-
-			UpdateExpression += "#" + key + " = " + "#" + key + " - " + ":" + nextKey + " ,";
-			ExpressionAttributeNames["#" + key] = key + "";
-
+		} else if (sign === "-") {
+			UpdateExpression += "#" + key + " = #" + key + " - :" + nextKey + " ,";
+			ExpressionAttributeNames["#" + key] = key;
 			ExpressionAttributeValues[":" + nextKey] = values;
 			i++;
 		} else {
-			UpdateExpression += "#" + key + " = " + ":" + key + " ,";
-			ExpressionAttributeNames["#" + key] = key + "";
+			UpdateExpression += "#" + key + " = :" + key + " ,";
+			ExpressionAttributeNames["#" + key] = key;
 			ExpressionAttributeValues[":" + key] = values;
 		}
 	}
@@ -117,23 +108,18 @@ async function update(docClient, tableName, keyMap, keys, keyvalues, options = {
 			let values = ConditionValues[i];
 			let sign = key.substr(0, 1);
 			let cursor = 1;
-			if (key.substr(1, 1) == ">" || key.substr(1, 1) == "=") {
+			if (key.substr(1, 1) === ">" || key.substr(1, 1) === "=") {
 				sign += key.substr(1, 1);
 				cursor++;
 			}
-			key = key.substr(cursor, key.length - 1);
+			key = key.substr(cursor, key.length - cursor);
 			ConditionExpression += "#" + key + " " + sign + " " + ":" + key + " ,";
-			ExpressionAttributeNames["#" + key] = key + "";
+			ExpressionAttributeNames["#" + key] = key;
 			ExpressionAttributeValues[":" + key] = values;
 		}
 		ConditionExpression = ConditionExpression.substr(0, ConditionExpression.length - 1);
 	}
-	if (options.Remove) {
-		UpdateExpression += " Remove";
-		options.Remove.forEach((element) => {
-			UpdateExpression += " " + element;
-		});
-	}
+
 	var params = {
 		TableName: options.rawTableName ? tableName : getTableName(tableName),
 		Key: keyMap,
@@ -142,37 +128,37 @@ async function update(docClient, tableName, keyMap, keys, keyvalues, options = {
 		ExpressionAttributeValues: ExpressionAttributeValues,
 		ReturnValues: options.returnValues ? "UPDATED_NEW" : "NONE",
 	};
+
 	if (ConditionExpression != undefined) {
 		params["ConditionExpression"] = ConditionExpression;
 	}
 
-	console.log("ddb_updating", params);
-	return docClient.update(params).promise();
+	const updateCommand = new UpdateCommand(params);
+	return docClient.send(updateCommand);
 }
+
 async function doDelete(docClient, tableName, keyMap, options = {}) {
 	var params = {
 		TableName: options.rawTableName ? tableName : getTableName(tableName),
 		Key: keyMap,
 	};
-	console.log("ddb_deleting", params);
-	return docClient.delete(params).promise();
+
+	const deleteCommand = new DeleteCommand(params);
+	return docClient.send(deleteCommand);
 }
+
 async function put(docClient, tableName, Item, options = {}) {
 	var params = {
 		TableName: options.rawTableName ? tableName : getTableName(tableName),
 		Item: Item,
 	};
 
-	console.log("ddb_putting", params);
-
-	return docClient.put(params).promise();
+	const putCommand = new PutCommand(params);
+	return docClient.send(putCommand);
 }
 
 function getTableName(tableName) {
-	return `${process.env.service}-${process.env.stage}-${tableName}`;
+	return `${process.env.service}-${process.env.stage}-${process.env.version}-${tableName}`;
 }
-module.exports.put = put;
-module.exports.doDelete = doDelete;
-module.exports.update = update;
-module.exports.query = query;
-module.exports.scan = scan;
+
+module.exports = { put, doDelete, update, query, scan };
