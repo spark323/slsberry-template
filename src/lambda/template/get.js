@@ -1,7 +1,3 @@
-const AWS = require('aws-sdk');
-AWS.config.update({
-    region: "ap-northeast-2"
-});
 const { handleHttpRequest } = require('slsberry');
 const apiSpec = {
     category: 'http',
