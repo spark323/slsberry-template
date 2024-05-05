@@ -70,32 +70,45 @@ async function scan(docClient, tableName) {
 }
 
 async function update(docClient, tableName, keyMap, keys, keyvalues, options = {}, ConditionKeys = undefined, ConditionValues = undefined) {
-	let UpdateExpression = "set ";
+	let UpdateExpression = "";
 	let ExpressionAttributeNames = {};
 	let ExpressionAttributeValues = {};
 	let ConditionExpression = undefined;
+
+	UpdateExpression = "set ";
+
 
 	for (var i = 0; i < keys.length; i++) {
 		let key = keys[i];
 		let values = keyvalues[i];
 		const sign = key.substr(0, 1);
 
-		key = key.substr(sign === "+" || sign === "-" ? 1 : 0, key.length - 1);
-		const nextKey = keys[i + 1];
+		if (sign == "+")//increntmental
+		{
+			key = key.substr(1, key.length - 1);
+			const nextKey = keys[i + 1];
 
-		if (sign === "+") {
-			UpdateExpression += "#" + key + " = #" + key + " + :" + nextKey + " ,";
-			ExpressionAttributeNames["#" + key] = key;
+			UpdateExpression += "#" + key + " = " + "#" + key + " + " + ":" + nextKey + " ,";
+			ExpressionAttributeNames["#" + key] = key + ""
+
 			ExpressionAttributeValues[":" + nextKey] = values;
 			i++;
-		} else if (sign === "-") {
-			UpdateExpression += "#" + key + " = #" + key + " - :" + nextKey + " ,";
-			ExpressionAttributeNames["#" + key] = key;
+		}
+		else if (sign == "-")//decrentmental
+		{
+			key = key.substr(1, key.length - 1);
+			const nextKey = keys[i + 1];
+
+
+			UpdateExpression += "#" + key + " = " + "#" + key + " - " + ":" + nextKey + " ,";
+			ExpressionAttributeNames["#" + key] = key + ""
+
 			ExpressionAttributeValues[":" + nextKey] = values;
 			i++;
-		} else {
-			UpdateExpression += "#" + key + " = :" + key + " ,";
-			ExpressionAttributeNames["#" + key] = key;
+		}
+		else {
+			UpdateExpression += "#" + key + " = " + ":" + key + " ,";
+			ExpressionAttributeNames["#" + key] = key + ""
 			ExpressionAttributeValues[":" + key] = values;
 		}
 	}
@@ -106,29 +119,29 @@ async function update(docClient, tableName, keyMap, keys, keyvalues, options = {
 		for (var i = 0; i < ConditionKeys.length; i++) {
 			let key = ConditionKeys[i];
 			let values = ConditionValues[i];
-			let sign = key.substr(0, 1);
-			let cursor = 1;
-			if (key.substr(1, 1) === ">" || key.substr(1, 1) === "=") {
-				sign += key.substr(1, 1);
-				cursor++;
-			}
-			key = key.substr(cursor, key.length - cursor);
+			const sign = key.substr(0, 1);
+			key = key.substr(1, key.length - 1);
 			ConditionExpression += "#" + key + " " + sign + " " + ":" + key + " ,";
-			ExpressionAttributeNames["#" + key] = key;
+			ExpressionAttributeNames["#" + key] = key + ""
 			ExpressionAttributeValues[":" + key] = values;
 		}
 		ConditionExpression = ConditionExpression.substr(0, ConditionExpression.length - 1);
 	}
+	if (options.Remove) {
+		UpdateExpression += " Remove";
+		options.Remove.forEach(element => {
+			UpdateExpression += " " + element
+		});
 
+	}
 	var params = {
 		TableName: options.rawTableName ? tableName : getTableName(tableName),
 		Key: keyMap,
 		UpdateExpression: UpdateExpression,
 		ExpressionAttributeNames: ExpressionAttributeNames,
 		ExpressionAttributeValues: ExpressionAttributeValues,
-		ReturnValues: options.returnValues ? "UPDATED_NEW" : "NONE",
+		ReturnValues: (options.returnValues) ? "UPDATED_NEW" : "NONE"
 	};
-
 	if (ConditionExpression != undefined) {
 		params["ConditionExpression"] = ConditionExpression;
 	}
