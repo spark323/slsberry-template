@@ -1,6 +1,7 @@
 aws_profile: [profile name]
 app: [app_name]
 region: ap-northeast-2
+useAWSSDKV3: true
 env:
   key: test_value
   key2: test_value2
