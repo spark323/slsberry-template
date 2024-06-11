@@ -29,7 +29,12 @@ const apiSpec = {
 exports.apiSpec = apiSpec;
 async function handler(inputObject, event) {
     const { hashKey, counter } = inputObject;
+    // const dynamoDBClient = new DynamoDBClient({
+    //     region: "ap-northeast-2",
+    //     credentials: event.v3TestProfile,
 
+    // });
+    // const docClient = DynamoDBDocumentClient.from(dynamoDBClient);
     console.log(inputObject);
     //do something with inputs
 
