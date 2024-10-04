@@ -1,4 +1,4 @@
-const apiSpec = {
+export const apiSpec = {
     category: 'stream',
     event: [
         {
@@ -28,7 +28,6 @@ const apiSpec = {
     response_stream: true,
     //커스텀 타임아웃
     timeout: 500,
-    target_function: `count/get`,
+    target_function: `stream/get`,
 
 };
-exports.apiSpec = apiSpec;

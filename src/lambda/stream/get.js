@@ -1,8 +1,10 @@
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 const { handleHttpRequest } = require('slsberry');
 
 //실제 함수 설정은 count_get.js 에서 설정
 
-async function handler(inputObject, event) {
+async function _handler(inputObject, event) {
     let responseStream = event.responseStream;
 
     const httpResponseMetadata = {
@@ -31,8 +33,9 @@ async function handler(inputObject, event) {
         }
     };
 }
-const apiSpec = require("./count_get").apiSpec
-exports.handler = awslambda.streamifyResponse(
+const mod = await import("./count_get.js")
+const apiSpec = mod.apiSpec
+export const handler = awslambda.streamifyResponse(
 
 
     async (event, responseStream, context) => {
@@ -40,6 +43,6 @@ exports.handler = awslambda.streamifyResponse(
         await handleHttpRequest({
             ...event,
             responseStream: responseStream
-        }, context, apiSpec, handler);
+        }, context, apiSpec, _handler);
     }
 )

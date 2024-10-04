@@ -1,5 +1,10 @@
+// import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
+// import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { createRequire } from "module";
+import ddbUtil from '../lib/ddbUtil.js';
+const require = createRequire(import.meta.url);
 const { handleHttpRequest } = require('slsberry');
-const apiSpec = {
+export const apiSpec = {
     category: 'http',
     event: [
         {
@@ -26,8 +31,8 @@ const apiSpec = {
         },
     },
 };
-exports.apiSpec = apiSpec;
-async function handler(inputObject, event) {
+
+async function _handler(inputObject, event) {
     const { hashKey, counter } = inputObject;
     // const dynamoDBClient = new DynamoDBClient({
     //     region: "ap-northeast-2",
@@ -51,6 +56,6 @@ async function handler(inputObject, event) {
         }
     };
 }
-exports.handler = async (event, context) => {
-    return await handleHttpRequest(event, context, apiSpec, handler);
+export const handler = async (event, context) => {
+    return await handleHttpRequest(event, context, apiSpec, _handler);
 };
