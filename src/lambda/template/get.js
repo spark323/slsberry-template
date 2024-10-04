@@ -46,7 +46,11 @@ async function _handler(inputObject, event) {
     if (false) {
         return { predefinedError: apiSpec.errors.unexpected_error };
     }
+    // const dynamoDBClient = new DynamoDBClient({
+    //     region: "ap-northeast-2",
+    //     credentials: event.v3TestProfile
 
+    // });
     return {
         status: 200,
         response: {
