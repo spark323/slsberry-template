@@ -36,6 +36,7 @@ export const apiSpec = {
     url: {
         cors: true
     },
+    response_stream: true,
     //---applicationsignal 모니터링을 위한 세팅
     // layers: [
     //     //리전별로 다름 https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-Enable-Lambda.html#Enable-Lambda-Layers
