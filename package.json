@@ -1,14 +1,21 @@
 {
 	"devDependencies": {
-		"serverless": "3",
+		"serverless": "4",
 		"serverless-cloudformation-sub-variables": "^0.2.1",
 		"serverless-deployment-bucket": "^1.3.0",
-		"slsberry-tester": "0.0.6",
+		"slsberry-tester": "^0.0.8",
 		"@aws-sdk/client-dynamodb": "^3.577.0",
 		"@aws-sdk/lib-dynamodb": "^3.577.0"
 	},
 	"dependencies": {
+		"@middy/core": "^5.1.0",
+		"@middy/http-error-handler": "^5.1.0",
+		"@middy/http-json-body-parser": "^5.5.1",
+		"@middy/util": "^5.5.1",
+		"@middy/validator": "^5.5.1",
+		"ajv-i18n": "^4.2.0",
 		"axios": "1.1.3",
+		"json-schema-to-ts": "^3.1.1",
 		"moment": "^2.30.1",
 		"slsberry": "^0.0.66"
 	},
@@ -16,8 +23,10 @@
 	"name": "slsberry-template",
 	"scripts": {
 		"test": "npx jest --env=node",
+		"build_windows": " npx tsc && npx slsberry -os windows",
+		"deploy_windows": "npx tsc && npx slsberry -os windows && npx sls deploy --verbose",
 		"build": "npx slsberry",
 		"doc": "npx slsberry",
-		"deploy": "npx slsberry && npx sls deploy"
+		"deploy": "npx tsc && npx slsberry -os windows  && npx sls deploy --verbose"
 	}
 }

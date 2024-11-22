@@ -1,7 +1,11 @@
-frameworkVersion: "3"
+frameworkVersion: "4"
 service: [service-name]
 app: [app-name]
 useDotenv: true
+build:
+  esbuild:
+    exclude:
+      - 'aws-sdk/*'   
 provider:
   name: aws
   runtime: nodejs20.x
