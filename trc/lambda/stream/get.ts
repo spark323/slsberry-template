@@ -13,71 +13,51 @@ import ddbUtil from '../libs/aws/ddbUtil.js';
 import { time } from "console";
 import { querySchema, apiSpec, responseSchema } from "./get_header.js";
 
-const eventSchema = {
-    type: "object",
-    properties: {
+
+export const handler = awslambda.streamifyResponse(
 
 
-    },
-    required: [],
-} as const;
+    async (event, responseStream, context) => {
 
 
 
-export async function lambdaHandler(
-    event: FromSchema<typeof eventSchema> & { v3TestProfile: AwsCredentialIdentityProvider },
-
-): Promise<any> {
-    // const { pk, sk } = event.queryStringParameters;
-    let responseStream = event.responseStream;
-
-    const readableStream = new Readable({
-        read() {
-            // This function is intentionally left empty
-            // Data will be pushed dynamically using `push`
-        },
-    });
+        const httpResponseMetadata = {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "text;charset=utf-8",
+                "X-Custom-Header": "Example-Custom-Header"
+            }
+        };
+        responseStream = awslambda.HttpResponseStream.from(responseStream, httpResponseMetadata);
 
 
-    let list = Array.from({ length: 300 }, (_, i) => `${(i + 1)} 초가 지났습니다.</br>`)
-    list.unshift(`<meta charset="UTF-8">`)
-    list.unshift("<html>")
+        let list = Array.from({ length: 300 }, (_, i) => `${(i + 1)} 초가 지났습니다.</br>`)
+        list.unshift(`<meta charset="UTF-8">`)
+        list.unshift("<html>")
 
-    for (let i of list) {
-        readableStream.push(i);
-        await new Promise(r => setTimeout(r, 1000));
-    }
-    readableStream.push(null);
-    return {
-        statusCode: 200,
-        body: readableStream,
-        headers: {
-            "Content-Type": "text;charset=utf-8",
-            "X-Custom-Header": "Example-Custom-Header"
+        for (let i of list) {
+            responseStream.write(i);
+            console.log(i)
+            await new Promise(r => setTimeout(r, 1000));
         }
-    };
-}
+        responseStream.end();
+        let response = {
+            isBase64Encoded: false,
+            statusCode: 200,
+            headers: {
 
-export const handler = middy({
-    timeoutEarlyResponse: () => {
-        return {
-            statusCode: 408
-        }
-    },
-    streamifyResponse: true
-})
-    .use(ioLogger())
-    .use(
-        globalErrorHandler({
-            name: apiSpec.summary,
-            path: process.env.PATH,
-            fallbackMessage: JSON.stringify({
-                message: "Internal Server Error",
-                code: "internal_server_error",
+                "Content-Type": "application/json; charset=utf-8",
+                "Access-Control-Expose-Headers": "*",
+
+                "Access-Control-Allow-Origin": "*",
+
+
+            },
+            body: JSON.stringify({
+                "message": "success",
             }),
-        }),
-    )
-    .use(userFriendlyValidator({ eventSchema }))
-    .handler(lambdaHandler);
-
+        };
+        return response;
+    }
+)
 
