@@ -23,8 +23,8 @@ export const apiSpec = {
     event: [
         {
             type: "REST",
-            method: "GET",
-            path: "/template",
+            method: "GET"
+
         },
         // {
         //     type: "REST",
@@ -53,6 +53,7 @@ export const apiSpec = {
     //     required: true,
     //     content: { "application/json": { schema: bodySchema } },
     // },
+    target_function: `stream/get`,
     requestQuery: querySchemaToParameters(querySchema),
     errors: {},
     responses: {

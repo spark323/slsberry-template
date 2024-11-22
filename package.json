@@ -38,7 +38,6 @@
 		"nanoid": "^5.0.8",
 		"slsberry": "^0.0.66"
 	},
-	"type": "module",
 	"name": "index.js",
 	"scripts": {
 		"test": "npx jest --env=node",
