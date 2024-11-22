@@ -1,6 +1,6 @@
 frameworkVersion: "4"
-service: [service-name]
-app: [app-name]
+service: slsberry-typescript
+app: backend
 useDotenv: true
 build:
   esbuild:

@@ -16,6 +16,7 @@
                 "--env=node"
             ],
             "console": "integratedTerminal",
+            "preLaunchTask": "build-windows",
             "internalConsoleOptions": "neverOpen",
         },
         {
