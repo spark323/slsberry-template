@@ -45,7 +45,7 @@
     "build_windows": " npx tsc && npx slsberry -os windows",
     "deploy_windows": "npx tsc && npx slsberry -os windows && npx sls deploy --verbose",
     "package": "npx tsc && npx slsberry -os windows && npx sls package --verbose",
-    "build": "npx slsberry",
+    "build": "npx tsc &&npx slsberry",
     "doc": "npx slsberry",
     "deploy": "npx tsc && npx slsberry -os windows  && npx sls deploy --verbose"
   }
