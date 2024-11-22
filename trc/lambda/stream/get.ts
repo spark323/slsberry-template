@@ -11,15 +11,15 @@ import { AwsCredentialIdentityProvider } from "@smithy/types";
 import { Readable } from 'stream';
 import ddbUtil from '../libs/aws/ddbUtil.js';
 import { time } from "console";
-import { querySchema, apiSpec, responseSchema } from "./get_header";
+import { querySchema, apiSpec, responseSchema } from "./get_header.js";
 
 const eventSchema = {
     type: "object",
     properties: {
-        queryStringParameters: querySchema,
+
 
     },
-    required: ["queryStringParameters"],
+    required: [],
 } as const;
 
 
@@ -28,7 +28,7 @@ export async function lambdaHandler(
     event: FromSchema<typeof eventSchema> & { v3TestProfile: AwsCredentialIdentityProvider },
 
 ): Promise<any> {
-    const { pk, sk } = event.queryStringParameters;
+    // const { pk, sk } = event.queryStringParameters;
     let responseStream = event.responseStream;
 
     const readableStream = new Readable({

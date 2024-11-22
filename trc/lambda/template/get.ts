@@ -20,11 +20,11 @@ const querySchema = {
 } as const;
 // prettier-ignore
 const responseSchema = {
-    type: "object",
-    properties: {
-        message: { type: "string" },
-    },
-    additionalProperties: true,
+  type: "object",
+  properties: {
+    message: { type: "string" },
+  },
+  additionalProperties: true,
 } as const;
 
 export const apiSpec = {
@@ -42,14 +42,15 @@ export const apiSpec = {
     // },
   ],
   //---applicationsignal 모니터링을 위한 세팅
-  layers: [
-    //리전별로 다름 https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-Enable-Lambda.html#Enable-Lambda-Layers
-    "arn:aws:lambda:ap-northeast-2:615299751070:layer:AWSOpenTelemetryDistroJs:5",
-  ],
-  environment: {
-    AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-instrument",
-  },
-  //아래 내용을 해야 실제로 500에러를 badrequest 취급.
+  // layers: [
+  //   //리전별로 다름 https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-Enable-Lambda.html#Enable-Lambda-Layers
+  //   "arn:aws:lambda:ap-northeast-2:615299751070:layer:AWSOpenTelemetryDistroJs:5",
+  // ],
+  // environment: {
+  //   AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-instrument",
+  // },
+  // //아래 내용을 해야 실제로 500에러를 badrequest 취급.
+  // doNotHandleError:true,
   //--------------------------------------------------------------------------------
   summary: "test template",
   desc: "Template 을 생성합니다.",

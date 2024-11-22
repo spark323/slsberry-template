@@ -1,13 +1,10 @@
-frameworkVersion: "4"
+frameworkVersion: "3"
 service: slsberry-typescript
 app: backend
 useDotenv: true
 build:
-  esbuild:
-    bundle: false
-    packages: external
-    exclude:
-      - "aws-sdk/*"
+package: 
+  individually: true
 provider:
   name: aws
   runtime: nodejs20.x
@@ -76,6 +73,23 @@ resources: # CloudFormation template syntax
                   Action:
                     - sts:AssumeRole
                   Resource: "*"
+    DataDDBTAble:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${env:STAGE, "dev"}-data-${env:VER, "1"}
+        AttributeDefinitions:
+          - AttributeName: hashKey
+            AttributeType: S
+          - AttributeName: rangeKey
+            AttributeType: S
+
+        KeySchema:
+          - AttributeName: hashKey
+            KeyType: HASH
+          - AttributeName: rangeKey
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
                 #필요에 따라서 추가
                 # - Effect: Allow
                 #   Action:

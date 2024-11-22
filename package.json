@@ -15,7 +15,7 @@
     "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
     "eslint-plugin-prettier": "^5.0.1",
     "eslint-plugin-promise": "^6.0.0",
-    "serverless": "4.4.7",
+    "serverless": "4.4.11",
     "serverless-cloudformation-sub-variables": "^0.2.1",
     "serverless-deployment-bucket": "^1.3.0",
     "slsberry-tester": "^0.0.8",
@@ -47,7 +47,6 @@
     "package": "npx tsc && npx slsberry -os windows && npx sls package --verbose",
     "build": "npx slsberry",
     "doc": "npx slsberry",
-    "deploy": "npx tsc && npx slsberry -os windows  && npx sls deploy --verbose",
-    "deploy_f": "npx tsc && npx slsberry -os windows  && npx sls deploy function --verbose"
+    "deploy": "npx tsc && npx slsberry -os windows  && npx sls deploy --verbose"
   }
 }
