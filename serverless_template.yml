@@ -4,8 +4,10 @@ app: backend
 useDotenv: true
 build:
   esbuild:
+    bundle: false
+    packages: external
     exclude:
-      - 'aws-sdk/*'   
+      - "aws-sdk/*"
 provider:
   name: aws
   runtime: nodejs20.x
