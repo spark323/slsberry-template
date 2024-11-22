@@ -1,5 +1,5 @@
 import middy from "@middy/core";
-import type { APIGatewayProxyResult } from "aws-lambda";
+
 import { ioLogger } from "../libs/middlewares/io-logger.js"
 import { globalErrorHandler } from "../libs/middlewares/global-error-handler.js";
 import { userFriendlyValidator } from "../libs/middlewares/user-friendly.validator.js"
@@ -8,7 +8,9 @@ import { querySchemaToParameters, createJsonError } from "../libs/utils/index.js
 import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { AwsCredentialIdentityProvider } from "@smithy/types";
+import { Readable } from 'stream';
 import ddbUtil from '../libs/aws/ddbUtil.js';
+import { time } from "console";
 const querySchema = {
     type: "object",
     properties: {
@@ -42,7 +44,10 @@ export const apiSpec = {
         //     authorizer: "recoAuthorizer",
         // },
     ],
-    disabled: true,
+    timeout: 300,
+    url: {
+        cors: true
+    },
     //---applicationsignal 모니터링을 위한 세팅
     layers: [
         //리전별로 다름 https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-Enable-Lambda.html#Enable-Lambda-Layers
@@ -89,40 +94,45 @@ const eventSchema = {
 export async function lambdaHandler(
     event: FromSchema<typeof eventSchema> & { v3TestProfile: AwsCredentialIdentityProvider },
 
-): Promise<APIGatewayProxyResult> {
+): Promise<any> {
     const { pk, sk } = event.queryStringParameters;
-    console.log(event)
+    let responseStream = event.responseStream;
 
-    const dynamoDBClient = new DynamoDBClient({
-        region: "ap-northeast-2",
-        credentials: event.v3TestProfile,
-
+    const readableStream = new Readable({
+        read() {
+            // This function is intentionally left empty
+            // Data will be pushed dynamically using `push`
+        },
     });
-    const docClient = DynamoDBDocumentClient.from(dynamoDBClient);
 
 
+    let list = Array.from({ length: 300 }, (_, i) => `${(i + 1)} 초가 지났습니다.</br>`)
+    list.unshift(`<meta charset="UTF-8">`)
+    list.unshift("<html>")
 
-
-    // throw createJsonError({
-    //     statusCode: 400,
-    //     code: "DoesNotHaveControlPanelSpec",
-    //     message: "This engine does not have an control panel spec.",
-    // });
-    let data = await ddbUtil.query(docClient, "data", ["hashKey", "rangeKey"], [pk, sk])
-
-
+    for (let i of list) {
+        readableStream.push(i);
+        await new Promise(r => setTimeout(r, 1000));
+    }
+    readableStream.push(null);
     return {
         statusCode: 200,
-        body: JSON.stringify({
-            message: {
-                data: data.Items
-
-            }
-        }),
+        body: readableStream,
+        headers: {
+            "Content-Type": "text;charset=utf-8",
+            "X-Custom-Header": "Example-Custom-Header"
+        }
     };
 }
 
-export const handler = middy()
+export const handler = middy({
+    timeoutEarlyResponse: () => {
+        return {
+            statusCode: 408
+        }
+    },
+    streamifyResponse: true
+})
     .use(ioLogger())
     .use(
         globalErrorHandler({
@@ -136,3 +146,5 @@ export const handler = middy()
     )
     .use(userFriendlyValidator({ eventSchema }))
     .handler(lambdaHandler);
+
+
