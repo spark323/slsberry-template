@@ -121,6 +121,6 @@ export const handler = middy()
       }),
     }),
   )
-  .use(httpJsonBodyParser())
+  .use(httpJsonBodyParser( disableContentTypeError: true))
   .use(userFriendlyValidator({ eventSchema }))
   .handler(lambdaHandler);
