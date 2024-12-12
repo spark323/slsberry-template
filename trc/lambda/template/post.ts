@@ -1,22 +1,21 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from "@middy/http-json-body-parser";
 import type { APIGatewayProxyResult } from "aws-lambda";
-import { ioLogger } from "../libs/middlewares/io-logger.js"
+import { ioLogger } from "../libs/middlewares/io-logger.js";
 import { globalErrorHandler } from "../libs/middlewares/global-error-handler.js";
-import { userFriendlyValidator } from "../libs/middlewares/user-friendly.validator.js"
+import { userFriendlyValidator } from "../libs/middlewares/user-friendly.validator.js";
 import { FromSchema } from "json-schema-to-ts";
 import { querySchemaToParameters, createJsonError } from "../libs/utils/index.js";
-import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { AwsCredentialIdentityProvider } from "@smithy/types";
-import ddbUtil from '../libs/aws/ddbUtil.js';
+import ddbUtil from "../libs/aws/ddbUtil.js";
 
 const bodySchema = {
   type: "object",
   properties: {
     pk: { type: "string" },
     sk: { type: "string" },
-
   },
   required: ["pk", "sk"],
   additionalProperties: true,
@@ -74,28 +73,22 @@ const eventSchema = {
   type: "object",
   properties: {
     body: bodySchema,
-
-
   },
 
   required: ["body"],
 } as const;
 
-
 export async function lambdaHandler(
   event: FromSchema<typeof eventSchema> & { v3TestProfile: AwsCredentialIdentityProvider },
-
 ): Promise<APIGatewayProxyResult> {
-  const { pk, sk, } = event.body;
+  const { pk, sk } = event.body;
   const dynamoDBClient = new DynamoDBClient({
     region: "ap-northeast-2",
     credentials: event.v3TestProfile,
-
   });
   const docClient = DynamoDBDocumentClient.from(dynamoDBClient);
-  console.log(event)
-  await ddbUtil.put(docClient, "data", { hashKey: pk, rangeKey: sk, data: event.body })
-
+  console.log(event);
+  await ddbUtil.put(docClient, "data", { hashKey: pk, rangeKey: sk, data: event.body });
 
   return {
     statusCode: 200,
@@ -103,8 +96,7 @@ export async function lambdaHandler(
       message: {
         pk,
         sk,
-
-      }
+      },
     }),
   };
 }
@@ -121,6 +113,6 @@ export const handler = middy()
       }),
     }),
   )
-  .use(httpJsonBodyParser( disableContentTypeError: true))
+  .use(httpJsonBodyParser({ disableContentTypeError: true }))
   .use(userFriendlyValidator({ eventSchema }))
   .handler(lambdaHandler);
