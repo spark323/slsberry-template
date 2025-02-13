@@ -40,7 +40,7 @@ plugins:
   - serverless-cloudformation-sub-variables
 
 resources: # CloudFormation template syntax
-  Description: []
+  Description: "CloudFormation template for ${self:service}"
   Resources:
     DefaultRole:
       Type: AWS::IAM::Role
