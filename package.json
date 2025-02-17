@@ -5,6 +5,8 @@
     "@types/aws-lambda": "^8.10.130",
     "@types/jest": "^29.5.11",
     "@types/js-yaml": "^4.0.9",
+    "@aws-sdk/client-rds-data": "^3.744.0",
+    "@aws-sdk/client-secrets-manager": "^3.716.0",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^20.11.10",
     "@typescript-eslint/eslint-plugin": "^6.20.0",
