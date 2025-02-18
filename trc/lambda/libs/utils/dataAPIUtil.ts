@@ -83,7 +83,7 @@ class MySQLDataAPIUtil {
         return response.records.map((row) => {
             const formattedRow: Record<string, any> = {};
             row.forEach((col, index) => {
-                const columnName = response.columnMetadata?.[index]?.name || `col${index}`;
+                const columnName = response.columnMetadata?.[index]?.label || `col${index}`;
                 formattedRow[columnName] =
                     col.stringValue ?? col.longValue ?? col.doubleValue ?? col.booleanValue ?? col.blobValue ?? null;
             });
