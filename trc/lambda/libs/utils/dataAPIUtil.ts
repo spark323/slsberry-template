@@ -33,7 +33,7 @@ class MySQLDataAPIUtil {
     }
 
     static async create(
-        awsCredentials: AwsCredentialIdentityProvider,
+        awsCredentials: AwsCredentialIdentityProvider | undefined,
         region: string,
         rdsArn: string,
         secretArn: string,
@@ -52,8 +52,9 @@ class MySQLDataAPIUtil {
         return JSON.parse(SecretString);
     }
 
-    private async executeSQL(sql: string, parameters: any[] = [], transactionId?: string): Promise<any[]> {
-        console.log(sql);
+    private async executeSQL(sql: string, parameters: any[] = [], transactionId?: string): Promise<any> {
+        console.log("Executing SQL (Parameterized):", sql);
+
         const sqlParams = parameters.map((param) => ({
             name: param.name,
             value:
@@ -65,8 +66,17 @@ class MySQLDataAPIUtil {
                             ? { blobValue: param.value }
                             : { stringValue: String(param.value) },
         }));
-        console.log(sql);
-        console.log(sqlParams);
+
+        // Generate and log raw SQL with actual values (for debugging)
+        let rawSql = sql;
+        parameters.forEach((param) => {
+            const value = typeof param.value === "string" ? `'${param.value}'` : param.value;
+            rawSql = rawSql.replace(`:${param.name}`, String(value));
+        });
+
+        console.log("Raw SQL (Debugging Only, Not Executed):", rawSql);
+        console.log("SQL Parameters:", sqlParams);
+
         const command = new ExecuteStatementCommand({
             resourceArn: this.rdsArn,
             secretArn: this.secretArn,
@@ -78,7 +88,7 @@ class MySQLDataAPIUtil {
         });
 
         const response = await this.rdsClient.send(command);
-        if (!response.records || response.records.length === 0) return [];
+        if (!response.records || response.records.length === 0) return response;
 
         return response.records.map((row) => {
             const formattedRow: Record<string, any> = {};
@@ -90,6 +100,7 @@ class MySQLDataAPIUtil {
             return formattedRow;
         });
     }
+
 
     async select(tableName: string, condition: string, projection: string = "*"): Promise<any> {
         return await this.executeSQL(`SELECT ${projection} FROM ${tableName} WHERE ${condition}`);
@@ -107,6 +118,40 @@ class MySQLDataAPIUtil {
         const params = Object.keys(updates).map((key, i) => ({ name: `param${i}`, value: updates[key] }));
         return await this.executeSQL(`UPDATE ${tableName} SET ${setClause} WHERE ${condition}`, params);
     }
+    async update2(tableName: string, updateObject: Record<string, any>, where: Record<string, any>): Promise<any> {
+        console.log(`update2() table: ${tableName}, updateObject: ${JSON.stringify(updateObject)}, where: ${JSON.stringify(where)}`);
+
+        if (Object.keys(updateObject).length === 0 || Object.keys(where).length === 0) {
+            throw new Error("update2: Update object and where condition cannot be empty.");
+        }
+
+        let queryStr = `UPDATE ${tableName} SET `;
+        let params: { name: string; value: any }[] = [];
+
+        // Construct SET clause
+        queryStr += Object.keys(updateObject)
+            .map((key, i) => `${key} = :updateParam${i}`)
+            .join(", ");
+
+        Object.keys(updateObject).forEach((key, i) => {
+            params.push({ name: `updateParam${i}`, value: updateObject[key] });
+        });
+
+        // Construct WHERE clause
+        const whereClause = Object.keys(where)
+            .map((key, i) => `${key} = :whereParam${i}`)
+            .join(" AND ");
+
+        queryStr += ` WHERE ${whereClause}`;
+
+        Object.keys(where).forEach((key, i) => {
+            params.push({ name: `whereParam${i}`, value: where[key] });
+        });
+
+        console.log(`Executing update2 query: ${queryStr}`, params);
+        return await this.executeSQL(queryStr, params);
+    }
+
 
     async deleteMany(tableName: string, conditions: Record<string, any> = {}): Promise<any> {
         let queryStr = `DELETE FROM ${tableName}`;
