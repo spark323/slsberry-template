@@ -9,6 +9,7 @@ import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from "@aws-sdk/clie
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { AwsCredentialIdentityProvider } from "@smithy/types";
 import ddbUtil from "../libs/aws/ddbUtil.js";
+import { ensureQueryStringMiddleware } from "../libs/middlewares/defaultQuerystrings.js";
 const querySchema = {
   type: "object",
   properties: {
@@ -125,4 +126,5 @@ export const handler = middy()
     }),
   )
   .use(userFriendlyValidator({ eventSchema }))
+  .use(ensureQueryStringMiddleware(querySchema))
   .handler(lambdaHandler);

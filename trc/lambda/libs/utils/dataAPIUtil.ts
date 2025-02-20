@@ -52,7 +52,7 @@ class MySQLDataAPIUtil {
         return JSON.parse(SecretString);
     }
 
-    private async executeSQL(sql: string, parameters: any[] = [], transactionId?: string): Promise<any> {
+    private async executeSQL(sql: string, parameters: any[] = [], transactionId?: string, returnEmpty?: boolean): Promise<any> {
         console.log("Executing SQL (Parameterized):", sql);
 
         const sqlParams = parameters.map((param) => ({
@@ -88,7 +88,7 @@ class MySQLDataAPIUtil {
         });
 
         const response = await this.rdsClient.send(command);
-        if (!response.records || response.records.length === 0) return response;
+        if (!response.records || response.records.length === 0) return (returnEmpty) ? [] : response;
 
         return response.records.map((row) => {
             const formattedRow: Record<string, any> = {};
@@ -176,7 +176,7 @@ class MySQLDataAPIUtil {
             .join(" AND ");
         queryStr += `${whereClause} LIMIT 1`;
         const params = Object.keys(where).map((key, i) => ({ name: `param${i}`, value: where[key] }));
-        const result = await this.executeSQL(queryStr, params);
+        const result = await this.executeSQL(queryStr, params, undefined, true);
         return result.length > 0 ? result[0] : null;
     }
 
@@ -217,7 +217,7 @@ class MySQLDataAPIUtil {
         }
 
         console.log(queryStr, params);
-        return await this.executeSQL(queryStr, params);
+        return await this.executeSQL(queryStr, params, undefined, true);
     }
 
 
