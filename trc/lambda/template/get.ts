@@ -125,6 +125,7 @@ export const handler = middy()
       }),
     }),
   )
-  .use(userFriendlyValidator({ eventSchema }))
   .use(ensureQueryStringMiddleware(querySchema))
+  .use(userFriendlyValidator({ eventSchema }))
+
   .handler(lambdaHandler);
