@@ -1,15 +1,16 @@
 import middy from "@middy/core";
 import type { APIGatewayProxyResult } from "aws-lambda";
-import { ioLogger } from "../libs/middlewares/io-logger.js";
-import { globalErrorHandler } from "../libs/middlewares/global-error-handler.js";
-import { userFriendlyValidator } from "../libs/middlewares/user-friendly.validator.js";
+import { ioLogger } from "../../libs/middlewares/io-logger.js";
+import { globalErrorHandler } from "../../libs/middlewares/global-error-handler.js";
+import { userFriendlyValidator } from "../../libs/middlewares/user-friendly.validator.js";
 import { FromSchema } from "json-schema-to-ts";
-import { querySchemaToParameters, createJsonError } from "../libs/utils/index.js";
+import { querySchemaToParameters, createJsonError } from "../../libs/utils/index.js";
 import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { AwsCredentialIdentityProvider } from "@smithy/types";
-import ddbUtil from "../libs/aws/ddbUtil.js";
-import { ensureQueryStringMiddleware } from "../libs/middlewares/defaultQuerystrings.js";
+import ddbUtil from "../../libs/aws/ddbUtil.js";
+import { ensureQueryStringMiddleware } from "../../libs/middlewares/defaultQuerystrings.js";
+import { ApiKeyVerifiedContext, authGuard } from "../../libs/middlewares/auth.guard.js";
 const querySchema = {
   type: "object",
   properties: {
@@ -34,31 +35,14 @@ export const apiSpec = {
     {
       type: "REST",
       method: "GET",
+      authorizer: "AppAuthorizer",
     },
-    // {
-    //     type: "REST",
-    //     method: "POST",
-    //     path: "/v2/admin/templates",
-    //     authorizer: "recoAuthorizer",
-    // },
+
   ],
-  //---applicationsignal 모니터링을 위한 세팅
-  // layers: [
-  //   //리전별로 다름 https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-Enable-Lambda.html#Enable-Lambda-Layers
-  //   "arn:aws:lambda:ap-northeast-2:615299751070:layer:AWSOpenTelemetryDistroJs:5",
-  // ],
-  // environment: {
-  //   AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-instrument",
-  // },
-  // //아래 내용을 해야 실제로 500에러를 badrequest 취급.
-  // doNotHandleError:true,
-  //--------------------------------------------------------------------------------
+
   summary: "test template",
   desc: "Template 을 생성합니다.",
-  // requestBody: {
-  //     required: true,
-  //     content: { "application/json": { schema: bodySchema } },
-  // },
+
   requestQuery: querySchemaToParameters(querySchema),
   errors: {},
   responses: {
@@ -84,7 +68,7 @@ const eventSchema = {
 } as const;
 
 export async function lambdaHandler(
-  event: FromSchema<typeof eventSchema> & { v3TestProfile: AwsCredentialIdentityProvider },
+  event: FromSchema<typeof eventSchema> & { v3TestProfile: AwsCredentialIdentityProvider }, context: ApiKeyVerifiedContext,
 ): Promise<APIGatewayProxyResult> {
   const { pk, sk } = event.queryStringParameters;
   console.log(event);
@@ -125,6 +109,7 @@ export const handler = middy()
       }),
     }),
   )
+  .use(authGuard())
   .use(ensureQueryStringMiddleware(querySchema))
   .use(userFriendlyValidator({ eventSchema }))
 

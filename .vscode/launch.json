@@ -5,28 +5,83 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Jest Tests",
+            "name": "All Tests",
             "type": "node",
             "request": "launch",
             "runtimeArgs": [
-                "--experimental-vm-modules", // Add this flag here
-                "--inspect-brk",
+                "--experimental-vm-modules",
                 "${workspaceRoot}/node_modules/jest/bin/jest.js",
                 "--runInBand",
-                "--env=node"
+                "--config=jest.config.js"
             ],
             "console": "integratedTerminal",
-            "preLaunchTask": "build-windows",
             "internalConsoleOptions": "neverOpen",
+            "sourceMaps": true,
+            "env": {
+                "NODE_OPTIONS": "--experimental-vm-modules"
+            }
         },
         {
+            "name": "Debug Tests",
             "type": "node",
             "request": "launch",
-            "name": "exp",
-            "skipFiles": [
-                "<node_internals>/**"
+            "runtimeArgs": [
+                "--experimental-vm-modules",
+                "${workspaceRoot}/node_modules/jest/bin/jest.js",
+                "--testMatch=**/*.test.jest.ts",
+                "--verbose",
+                "--colors",
+                "--runInBand",
+                "--reporters=default",
+                "--config=jest.config.js"
             ],
-            "program": "${workspaceFolder}\\src\\lambda\\template/get.js"
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "sourceMaps": true,
+            "env": {
+                "NODE_OPTIONS": "--experimental-vm-modules"
+            }
+        },
+        {
+            "name": "Board Tests",
+            "type": "node",
+            "request": "launch",
+            "runtimeArgs": [
+                "--experimental-vm-modules",
+                "${workspaceRoot}/node_modules/jest/bin/jest.js",
+                "--testMatch=**/board.test.jest.ts",
+                "--verbose",
+                "--colors",
+                "--runInBand",
+                "--reporters=default",
+                "--config=jest.config.js"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "sourceMaps": true,
+            "env": {
+                "NODE_OPTIONS": "--experimental-vm-modules"
+            }
+        },
+        {
+            "name": "Experiment",
+            "type": "node",
+            "request": "launch",
+            "runtimeArgs": [
+                "--experimental-vm-modules",
+                "${workspaceRoot}/node_modules/jest/bin/jest.js",
+                "--testMatch=**/exp.jest.ts",
+                "--testPathIgnorePatterns=[]",
+                "--runInBand",
+                "--config=jest.config.js"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "sourceMaps": true,
+            "env": {
+                "NODE_OPTIONS": "--experimental-vm-modules",
+                "KEEP_SAMPLES": "true"
+            }
         }
     ]
 }

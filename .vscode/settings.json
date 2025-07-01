@@ -1,2 +1,13 @@
 {
+    "editor.formatOnSave": true,
+    "[html]": {
+        "editor.tabSize": 4
+    },
+    "[javascript]": {
+        "editor.tabSize": 2
+    },
+    "[python]": {
+        "editor.tabSize": 4
+    },
+    "editor.detectIndentation": false
 }

@@ -55,7 +55,7 @@ async function query(
 		ExpressionAttributeNames,
 		ExpressionAttributeValues,
 	};
-
+	console.log(params)
 	if (options.IndexName) params.IndexName = options.IndexName;
 	if (ProjectionExpression) params.ProjectionExpression = ProjectionExpression;
 	if (options.ConsistentRead !== undefined) params.ConsistentRead = options.ConsistentRead;
@@ -134,7 +134,7 @@ async function update(
 		ExpressionAttributeValues,
 		ReturnValues: options.returnValues ? 'UPDATED_NEW' : 'NONE',
 	};
-
+	console.log(params)
 	if (ConditionExpression) params.ConditionExpression = ConditionExpression;
 
 	const updateCommand = new UpdateCommand(params);
@@ -166,7 +166,7 @@ async function put(
 		TableName: options.rawTableName ? tableName : getTableName(tableName),
 		Item,
 	};
-
+	console.log(params)
 	const putCommand = new PutCommand(params);
 	return docClient.send(putCommand);
 }

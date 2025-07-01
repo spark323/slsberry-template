@@ -3,7 +3,7 @@ version:25-02-18
 @author: chris
 */
 
-import { MySQLDataAPIUtil } from "./dataAPIUtil.js";
+import { PostgreSQLDsqlUtil } from "./dsqlUtill.js";
 
 interface RequestParams {
     draw?: number;
@@ -23,13 +23,13 @@ interface ColumnDefinition {
 
 export default class NodeTable {
     private request: RequestParams;
-    private db: MySQLDataAPIUtil;
+    private db: PostgreSQLDsqlUtil;
     private table: string;
     private primaryKey: string;
     private columns: ColumnDefinition[];
     private filterExpression: string;
 
-    constructor(request: any, db: MySQLDataAPIUtil, table: string, primaryKey: string, columns: ColumnDefinition[], filterExpression = "") {
+    constructor(request: any, db: PostgreSQLDsqlUtil, table: string, primaryKey: string, columns: ColumnDefinition[], filterExpression = "") {
         this.request = request as RequestParams;
         this.db = db;
         this.table = table;
@@ -40,7 +40,7 @@ export default class NodeTable {
 
     private limit(): string {
         if (this.request.start !== undefined && this.request.length !== undefined) {
-            return ` LIMIT ${this.request.start}, ${this.request.length}`;
+            return ` LIMIT ${this.request.length} offset ${this.request.start}`;
         }
         return "";
     }
@@ -51,6 +51,7 @@ export default class NodeTable {
         let orderBy: string[] = [];
         let dtColumns = NodeTable.pluck2(this.columns);
 
+        console.log("dtColumns", dtColumns);
         this.request.order.forEach(({ column, dir }) => {
             let requestColumn = this.request.columns[column];
             let columnIdx = dtColumns[requestColumn.data];
@@ -92,7 +93,7 @@ export default class NodeTable {
         const order = this.order();
         const limit = this.limit();
         const query = `SELECT ${attributes.join(", ")} FROM ${this.table} ${where} ${order} ${limit}`;
-        return await this.db.raw(query);
+        return await this.db.raw(query, undefined, true);
     }
 
     async outputAsync() {
