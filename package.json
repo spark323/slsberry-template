@@ -49,7 +49,7 @@
         "build_windows": "rimraf src/lambda/* && npx tsc && npx slsberry -os windows",
         "deploy_windows": "rimraf src/lambda/* && npx tsc && npx slsberry -os windows && npx sls deploy --verbose",
         "build": "npx slsberry",
-        "doc": "npx tsc &&  npx slsberry ",
+        "doc": "rimraf src/lambda/* && npx tsc &&  npx slsberry ",
         "deploy": "rimraf src/lambda/* && npx tsc && npx slsberry -os windows  && npx sls deploy --verbose"
     }
 }
