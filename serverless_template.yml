@@ -3,8 +3,7 @@ service: []
 app: backend
 useDotenv: true
 build:
-package: 
-  individually: true
+
 provider:
   name: aws
   runtime: nodejs22.x
