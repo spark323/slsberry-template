@@ -102,3 +102,30 @@ export function combineArray<T>(arr: T[], targetFieldName: string, resultFieldNa
 
     return Object.values(groupNamesMap);
 }
+
+export function querySchemaToParameters(querySchema: {
+    properties: Record<
+        string,
+        {
+            type: string;
+            description: string;
+            example?: any;
+            enum?: readonly string[];
+        }
+    >,
+    required: readonly string[];
+    additionalProperties?: boolean;
+}) {
+    return Object.entries(querySchema.properties).map(([key, value]) => {
+        const { type, description, enum: _enum } = value;
+        return {
+            name: key,
+            in: "query",
+            required: querySchema.required.includes(key),
+            description,
+            schema: { type, enum: _enum },
+            example: value.example,
+            enum: value.enum,
+        };
+    });
+}
