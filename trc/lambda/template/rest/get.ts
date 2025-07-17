@@ -106,9 +106,9 @@ export async function lambdaHandler(
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: {
-        data: data.Items,
-      },
+
+      data: data.Items,
+
     }),
   };
 }

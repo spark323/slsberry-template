@@ -93,10 +93,10 @@ export async function lambdaHandler(
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: {
-        pk,
-        sk,
-      },
+
+      pk,
+      sk,
+
     }),
   };
 }
