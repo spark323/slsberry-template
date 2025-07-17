@@ -29,6 +29,10 @@ provider:
     stage: ${env:STAGE, "dev"}
     region: ${opt:region, "ap-northeast-2"}
     app: ${self:app}
+    api_gateway_id:
+      Ref: HttpApi
+    # socket_api_gateway_id:
+    #   Ref: WebsocketsApi 
   deploymentBucket:
     name: ${aws:accountId}-serverless-deploys
     maxPreviousDeploymentArtifacts: 5
