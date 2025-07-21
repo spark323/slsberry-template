@@ -107,7 +107,7 @@ export const handler = middy()
   .use(
     globalErrorHandler({
       name: apiSpec.summary,
-      path: process.env.PATH,
+      path: process.env.URI_PATH,
       fallbackMessage: JSON.stringify({
         message: "Internal Server Error",
         code: "internal_server_error",
