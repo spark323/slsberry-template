@@ -9,15 +9,16 @@ import { querySchemaToParameters, createJsonError } from "../../libs/utils/index
 import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { AwsCredentialIdentityProvider } from "@smithy/types";
-import ddbUtil from "../../libs/aws/ddbUtil.js";
 
+import { ResultType } from "../../types/types.js";
+import dsqlUtill from "../../libs/utils/dsqlUtillWrapper.js";
+import atomicCounterUtil from "../../libs/aws/atomicCounterUtil.js";
 const bodySchema = {
   type: "object",
   properties: {
-    pk: { type: "string" },
-    sk: { type: "string" },
+    contents: { type: "string", description: "Contents of the item" },
   },
-  required: ["pk", "sk"],
+  required: ["contents"],
   additionalProperties: true,
 } as const;
 
@@ -37,19 +38,11 @@ export const apiSpec = {
       type: "REST",
       method: "Post",
     },
-    // {
-    //     type: "REST",
-    //     method: "POST",
-    //     path: "/v2/admin/templates",
-    //     authorizer: "recoAuthorizer",
-    // },
+
   ],
   summary: "test template",
   desc: "Template 을 생성합니다.",
-  // requestBody: {
-  //     required: true,
-  //     content: { "application/json": { schema: bodySchema } },
-  // },
+
   requestBody: {
     required: true,
     content: { "application/json": { schema: bodySchema } },
@@ -81,24 +74,36 @@ const eventSchema = {
 export async function lambdaHandler(
   event: FromSchema<typeof eventSchema> & { v3TestProfile: AwsCredentialIdentityProvider },
 ): Promise<APIGatewayProxyResult> {
-  const { pk, sk } = event.body;
-  const dynamoDBClient = new DynamoDBClient({
-    region: "ap-northeast-2",
-    credentials: event.v3TestProfile,
-  });
-  const docClient = DynamoDBDocumentClient.from(dynamoDBClient);
-  console.log(event);
-  await ddbUtil.put(docClient, "data", { hashKey: pk, rangeKey: sk, data: event.body });
+  const { contents } = event.body;
+  try {
+    const contentsData = {
+      idx: await atomicCounterUtil.incrementCounter("contents", 1, event.v3TestProfile),
+      contents: contents,
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
+    };
 
-      pk,
-      sk,
+    await dsqlUtill.create('tb_contents', contentsData, event.v3TestProfile);
+    return {
+      statusCode: 201,
+      body: JSON.stringify({
+        result: ResultType.Success,
+      }),
+    };
+  } catch (error) {
+    console.log('Error creating organization invitation:', error);
+    // Check if error is already a formatted error from createJsonError
+    const err = error as any;
+    if (err?.statusCode && err?.code) {
+      throw err;
+    }
+    throw createJsonError({
+      statusCode: 500,
+      code: "InternalServerError",
+      message: "Error creating organization invitation",
+    });
+  }
 
-    }),
-  };
+
 }
 
 export const handler = middy()
