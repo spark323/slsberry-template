@@ -9,7 +9,7 @@ async function generateToken(credential?: AwsCredentialIdentityProvider) {
   console.log(credential);
   let dsqlObject: any = {
     hostname: process.env.dsql_endpoint!,
-    region: "ap-northeast-2"
+    region: process.env.region
   }
   if (credential) {
     dsqlObject = {

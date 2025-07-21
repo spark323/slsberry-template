@@ -8,25 +8,24 @@ import { jest } from '@jest/globals';
 
 // Setup test environment and get configuration and credentials
 const { testConfig, credentials } = setupTestEnvironment('default_config.yml');
-import { lambdaHandler as putHandler } from '../template/restauth/post.js';
+import { lambdaHandler as putHandler } from '../template/rest/post.js';
 describe('File Delete Handler Tests', () => {
-    jest.setTimeout(300000000);
-    it('should delete file and update project main_file_id to null', async () => {
+  jest.setTimeout(300000000);
+  it('should delete file and update project main_file_id to null', async () => {
 
 
-        const event = {
-            body: {
-                pk: "test-project",
-                sk: "test-project",
-            },
-            v3TestProfile: credentials
-        };
+    const event = {
+      body: {
+        contents: "test-project",
+      },
+      v3TestProfile: credentials
+    };
 
-        // Call the create project lambda handler
-        const response = await putHandler(event, testConfig.claimsProfiles as unknown as ApiKeyVerifiedContext);
+    // Call the create project lambda handler
+    const response = await putHandler(event);
 
 
-    });
+  });
 
 
 });

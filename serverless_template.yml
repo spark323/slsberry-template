@@ -29,6 +29,7 @@ provider:
     stage: ${env:STAGE, "dev"}
     region: ${opt:region, "ap-northeast-2"}
     app: ${self:app}
+    dsql_endpoint: ${env:dsql_endpoint}
     api_gateway_id:
       Ref: HttpApi
     # socket_api_gateway_id:
@@ -75,7 +76,7 @@ resources: # CloudFormation template syntax
               Statement:
                 - Effect: Allow
                   Action:
-                    - sts:AssumeRole
+                    - dsql:*
                   Resource: "*"
     DataDDBTAble:
       Type: AWS::DynamoDB::Table
