@@ -13,13 +13,4 @@ env:
   dsql_endpoint: 2qabuf7be24l74wozitfemo2xi.dsql.ap-northeast-2.on.aws
 
   region: ap-northeast-2
-  
-  # - uri: template/get.js
-  #   eventType: http
-  #   description: emplate get2
-  #   method: get
-  #   params:
-  #     pk: test
-  #     sk: sk
-  #   expect:
-  #     checkType: check_200
+
