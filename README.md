@@ -6,7 +6,7 @@
 3. type은 type/types.ts에 생성
 
 ## DSQL을 사용할 경우
-1. knex, pg 디펜던시 확보 필요 (예: yarn add knex, pg)
+1. knex, pg 디펜던시 확보 필요 (예: yarn add knex, pg)(yarn add @aws-sdk/dsql-signer --dev)
 2. DSQL 프로비전 후 .env 파일에 dsql_endpoint 업데이트(백엔드 프로비전 리전과 같은 리전이라 가정)
 3. 만약 백엔드 프로비전 리전과 동일하지 않은 경우 dsqlUtillWrapper:12 에서 리전 수정 필요
 4. DSQL 사용 권한은 template.yml의 iam 역할에 기본적으로 정의 되어있음 (dsql:*)
