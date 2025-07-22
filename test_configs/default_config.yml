@@ -12,7 +12,7 @@ env:
   service: service_name
   dsql_endpoint: 2qabuf7be24l74wozitfemo2xi.dsql.ap-northeast-2.on.aws
 
-  dsql_region: ap-northeast-2
+  region: ap-northeast-2
   
   # - uri: template/get.js
   #   eventType: http
