@@ -1,4 +1,4 @@
-aws_profile: qnect
+aws_profile: profile
 app: backend
 region: ap-northeast-2
 useAWSSDKV3: true
@@ -9,12 +9,10 @@ claimsProfiles:
 env:
   stage: dev
   version: 1
-  service: qnect
+  service: service_name
   dsql_endpoint: 2qabuf7be24l74wozitfemo2xi.dsql.ap-northeast-2.on.aws
-  dsql_endpoint_dev: kyabuf7beodjzhy4ezyvdhu7ci.dsql.ap-northeast-2.on.aws
+
   dsql_region: ap-northeast-2
-  RDSARN: "arn:aws:rds:ap-northeast-2:232562394554:cluster:qnect-db-cluster"
-  RDS_SECRET_ARN: "arn:aws:secretsmanager:ap-northeast-2:232562394554:secret:/qnect-db/rdssecret-kmbkit"
   
   # - uri: template/get.js
   #   eventType: http
