@@ -49,8 +49,9 @@
         "test": "npx jest --env=node",
         "build_windows": "rimraf src/lambda/* && npx tsc && npx slsberry -os windows",
         "deploy_windows": "rimraf src/lambda/* && npx tsc && npx slsberry -os windows && npx sls deploy --verbose",
-        "build": "npx slsberry",
+        "build": "rimraf src/lambda/* --verbose &&npx slsberry",
         "doc": "rimraf src/lambda/* && npx tsc &&  npx slsberry ",
-        "deploy": "rimraf src/lambda/* && npx tsc && npx slsberry -os windows  && npx sls deploy --verbose"
+        "deploy": "npx tsc --build && npx slsberry -os windows && npx sls deploy --verbose",
+        "deploy:clean": "rimraf src/lambda/* --verbose && npx tsc --build && npx slsberry -os windows && npx sls deploy --verbose"
     }
 }
