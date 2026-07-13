@@ -4,12 +4,33 @@ import { AwsCredentialIdentityProvider } from "@aws-sdk/types";
 
 
 let db: Knex | null = null;
+let dbCreatedAt = 0;
+let dbResetPromise: Promise<Knex> | null = null;
+const DSQL_TOKEN_REFRESH_MS = 12 * 60 * 1000;
+
+function getDsqlConfig() {
+  const endpoint = process.env.dsql_endpoint?.trim();
+  if (!endpoint) {
+    throw new Error('dsql_endpoint is not configured');
+  }
+  return {
+    endpoint,
+    region: (process.env.dsql_region || process.env.region || 'ap-northeast-2').trim(),
+  };
+}
+
+function applyOrder(queryPromise: any, order?: Array<[string, 'asc' | 'desc']>) {
+  for (const [column, direction] of order || []) {
+    queryPromise.orderBy(column, direction);
+  }
+  return queryPromise;
+}
 async function generateToken(credential?: AwsCredentialIdentityProvider) {
   console.log("Generating token for DSQL connection...");
-  console.log(credential);
+  const { endpoint, region } = getDsqlConfig();
   let dsqlObject: any = {
-    hostname: process.env.dsql_endpoint,
-    region: process.env.region
+    hostname: endpoint,
+    region,
   }
   if (credential) {
     dsqlObject = {
@@ -21,7 +42,6 @@ async function generateToken(credential?: AwsCredentialIdentityProvider) {
   try {
     // Use `getDbConnectAuthToken` if you are _not_ logging in as the `admin` user
     const token = await signer.getDbConnectAdminAuthToken();
-    console.log(token);
     return token;
   } catch (error) {
     console.log("Failed to generate token: ", error);
@@ -32,12 +52,13 @@ async function getNewDBInstance(credential?: AwsCredentialIdentityProvider): Pro
   let newDB: Knex;
 
   const token = await generateToken(credential);
+  const { endpoint } = getDsqlConfig();
 
 
   newDB = knex({
     client: 'pg',
     connection: {
-      host: process.env.dsql_endpoint,
+      host: endpoint,
       user: 'admin',
       password: token,
       port: 5432,
@@ -50,6 +71,49 @@ async function getNewDBInstance(credential?: AwsCredentialIdentityProvider): Pro
 }
 
 // Password rotation 시 자동으로 새 DB 연결을 받아와서 재시도
+async function destroyDbInstance() {
+  const staleDb = db;
+  db = null;
+  dbCreatedAt = 0;
+  if (staleDb) {
+    try {
+      await staleDb.destroy();
+    } catch (error) {
+      console.warn('Failed to destroy stale DSQL connection', error);
+    }
+  }
+}
+
+async function resetDbInstance(credential?: AwsCredentialIdentityProvider): Promise<Knex> {
+  if (!dbResetPromise) {
+    dbResetPromise = (async () => {
+      await destroyDbInstance();
+      const newDb = await getNewDBInstance(credential);
+      db = newDb;
+      dbCreatedAt = Date.now();
+      return newDb;
+    })().finally(() => {
+      dbResetPromise = null;
+    });
+  }
+  return dbResetPromise;
+}
+
+async function ensureDbInstance(credential?: AwsCredentialIdentityProvider): Promise<Knex> {
+  if (!db || !dbCreatedAt || Date.now() - dbCreatedAt >= DSQL_TOKEN_REFRESH_MS) {
+    return resetDbInstance(credential);
+  }
+  return db;
+}
+
+function isDsqlConnectionError(error: any) {
+  const message = `${error?.message ?? ''} ${error?.hint ?? ''}`.toLowerCase();
+  return ['28P01', '08006', 'ECONNREFUSED'].includes(error?.code)
+    || message.includes('signature expired')
+    || message.includes('access denied')
+    || message.includes('unable to accept connection');
+}
+
 async function safeQueryPromise(queryPromise: any, credential?: AwsCredentialIdentityProvider): Promise<any> {
 
   console.log('query:', queryPromise.toString());
@@ -57,19 +121,18 @@ async function safeQueryPromise(queryPromise: any, credential?: AwsCredentialIde
     return await queryPromise;
   } catch (error: any) {
     console.log('safeQueryPromise error', error);
-    if (error.code === '28P01' || error.code === 'ECONNREFUSED' || error.code == '08006') { // PostgreSQL access denied errors
-      db = await getNewDBInstance(credential);
+    if (isDsqlConnectionError(error)) {
       const query = queryPromise.toString();
-      const result = await db!.raw(query);
+      db = await resetDbInstance(credential);
+      const result = await db.raw(query);
       return result.rows;
-    } else {
-      throw error;
     }
+    throw error;
   }
 }
 
 async function raw(query: string, transactionId?: string, returnEmpty?: boolean, credential?: AwsCredentialIdentityProvider): Promise<any> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql raw() : ${query}`);
   let queryPromise = db.raw(query);
   const result = await safeQueryPromise(queryPromise, credential);
@@ -78,7 +141,7 @@ async function raw(query: string, transactionId?: string, returnEmpty?: boolean,
 }
 
 async function create(table: string, createObject: Record<string, any>, credential?: AwsCredentialIdentityProvider): Promise<any> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql create() table: ${table}, createObject: ${JSON.stringify(createObject)}`);
   let queryPromise = db.insert(createObject).into(table);
   const rows = await safeQueryPromise(queryPromise, credential);
@@ -92,7 +155,7 @@ async function getOne(
   where: { [key: string]: any },
   credential?: AwsCredentialIdentityProvider
 ): Promise<{ [key: string]: any }> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql getOne() table: ${table}, attrs: ${attributes}, where: ${JSON.stringify(where)}`);
   let queryPromise = db
     .select(...attributes)
@@ -116,7 +179,7 @@ async function getMany(
   findOptions: { [key: string]: any },
   credential?: AwsCredentialIdentityProvider
 ): Promise<Array<{ [key: string]: any }>> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   if (findOptions.offset === undefined && findOptions.limit === undefined && findOptions.order === undefined && findOptions.where == undefined) {
     // offset, limit, order를 입력하지 않고 where만 들어가 있는 경우 처리
     findOptions.where = JSON.parse(JSON.stringify(findOptions));
@@ -126,7 +189,7 @@ async function getMany(
   console.log(`postgresql getMany() table: ${table}, attrs: ${attributes}, findOptions: ${JSON.stringify(findOptions)}`);
 
   let queryPromise = db.select(...attributes).from(table);
-  findOptions.order && queryPromise.orderBy(findOptions.order[0][0], findOptions.order[0][1]);
+  applyOrder(queryPromise, findOptions.order);
   findOptions.offset && queryPromise.offset(findOptions.offset);
   findOptions.limit && queryPromise.limit(findOptions.limit);
   findOptions.where &&
@@ -137,6 +200,9 @@ async function getMany(
           : builder.where(filter[0], filter[1]);
       }
     });
+  if (findOptions.whereRaw) {
+    queryPromise.whereRaw(findOptions.whereRaw);
+  }
 
   const rows = await safeQueryPromise(queryPromise, credential);
   //console.log(`postgresql getMany() rows: ${JSON.stringify(rows)}`);
@@ -144,7 +210,7 @@ async function getMany(
 }
 
 async function getCount(table: string, where: { [key: string]: any }, credential?: AwsCredentialIdentityProvider): Promise<number> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql getCount() table: ${table}, where: ${JSON.stringify(where)}`);
 
   let queryPromise = db
@@ -172,7 +238,7 @@ async function update2(
   where: { [key: string]: any },
   credential?: AwsCredentialIdentityProvider
 ): Promise<{ [key: string]: any }> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(
     `postgresql update() table: ${table}, attrs: ${JSON.stringify(updateObject)}, where: ${JSON.stringify(where)}`
   );
@@ -195,7 +261,7 @@ async function upsert(
   duplicateWhere: { [key: string]: any },
   credential?: AwsCredentialIdentityProvider
 ): Promise<{ [key: string]: any } | number> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(
     `postgresql upsert() table: ${table}, upsertObject: ${JSON.stringify(upsertObject)}, duplicateWhere: ${duplicateWhere}`
   );
@@ -217,8 +283,11 @@ async function upsert(
 }
 
 async function deleteOne(table: string, where: { [key: string]: any }, credential?: AwsCredentialIdentityProvider): Promise<number> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql deleteOne() table: ${table}, where: ${JSON.stringify(where)}`);
+  if (Object.keys(where).length === 0) {
+    throw new Error('deleteOne requires at least one where condition');
+  }
 
   let queryPromise = db
     .from(table)
@@ -238,7 +307,7 @@ async function deleteOne(table: string, where: { [key: string]: any }, credentia
 }
 
 async function deleteMany(table: string, where: { [key: string]: any }, credential?: AwsCredentialIdentityProvider): Promise<number> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql deleteMany() table: ${table},where: ${JSON.stringify(where)}`);
 
   let queryPromise = db
@@ -258,14 +327,14 @@ async function deleteMany(table: string, where: { [key: string]: any }, credenti
 }
 
 async function getSearch(table: string, attributes: Array<string>, findOptions: { [key: string]: any }, credential?: AwsCredentialIdentityProvider): Promise<Array<{ [key: string]: any }>> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql getSearch() table: ${table}, attrs: ${attributes}, findOptions: ${JSON.stringify(findOptions)}`);
 
   let queryPromise = db.select(...attributes).from(table);
-  findOptions.order && queryPromise.orderBy(findOptions.order[0][0], findOptions.order[0][1]);
+  applyOrder(queryPromise, findOptions.order);
   findOptions.offset && queryPromise.offset(findOptions.offset);
   findOptions.limit && queryPromise.limit(findOptions.limit);
-  for (let whereLike of findOptions.whereLikes) {
+  for (let whereLike of findOptions.whereLikes || []) {
     const builderFunction = (builder: any) => {
       for (const [key, value] of Object.entries(whereLike)) {
         builder = builder.orWhereILike(key, value);
@@ -298,11 +367,11 @@ async function getSearch(table: string, attributes: Array<string>, findOptions: 
 }
 
 async function getSearchCount(table: string, findOptions: { [key: string]: any }, credential?: AwsCredentialIdentityProvider): Promise<number> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql getSearchCount() table: ${table}, findOptions: ${JSON.stringify(findOptions)}`);
 
   let queryPromise = db.count('*', { as: 'cnt' }).from(table);
-  for (let whereLike of findOptions.whereLikes) {
+  for (let whereLike of findOptions.whereLikes || []) {
     const builderFunction = (builder: any) => {
       for (const [key, value] of Object.entries(whereLike)) {
         builder = builder.orWhereILike(key, value);
@@ -347,7 +416,7 @@ async function innerJoin(
   findOptions: { [key: string]: any },
   credential?: AwsCredentialIdentityProvider
 ): Promise<Array<{ [key: string]: any }>> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(
     `postgresql innerJoin() table: ${table1} & ${table2}, key: ${key1} & ${key2}, attrs: ${attributes}, findOptions: ${JSON.stringify(
       findOptions
@@ -358,7 +427,7 @@ async function innerJoin(
     .select(...attributes)
     .from(table1)
     .innerJoin(table2, key1, key2);
-  findOptions.order && queryPromise.orderBy(findOptions.order[0][0], findOptions.order[0][1]);
+  applyOrder(queryPromise, findOptions.order);
   findOptions.offset && queryPromise.offset(findOptions.offset);
   findOptions.limit && queryPromise.limit(findOptions.limit);
   queryPromise.where((builder: any) => {
@@ -372,7 +441,7 @@ async function innerJoin(
 
 // parameter로 전달받은 table에서 where 조건에 해당하는 row들의 column value를 db의 현재 timestamp 값으로 업데이트한다.
 async function updateTimestamp(table: string, column: string, where: { [key: string]: any }, credential?: AwsCredentialIdentityProvider): Promise<any> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log('[updateTimestamp parameters]', JSON.stringify({ table, column, where })); let queryPromise = db.from(table).where((builder: any) => {
     for (const filter of Object.entries(where)) {
       builder = Array.isArray(filter[1]) ? builder.whereIn(filter[0], filter[1]) : builder.where(filter[0], filter[1]);
@@ -385,7 +454,7 @@ async function updateTimestamp(table: string, column: string, where: { [key: str
 }
 
 async function batchCreate(table: string, createObjects: Record<string, any>[], credential?: AwsCredentialIdentityProvider): Promise<any> {
-  db = db || (await getNewDBInstance(credential));
+  db = await ensureDbInstance(credential);
   console.log(`postgresql batchCreate() table: ${table}, count: ${createObjects.length}`);
 
   if (createObjects.length === 0) {

@@ -1,12 +1,13 @@
-frameworkVersion: "3"
+frameworkVersion: "4"
 service: []
 app: backend
 useDotenv: true
+configValidationMode: off
 build:
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs24.x
   deploymentMethod: direct
   versionFunctions: false
   iam:
@@ -29,6 +30,8 @@ provider:
     stage: ${env:STAGE, "dev"}
     region: ${opt:region, "ap-northeast-2"}
     app: ${self:app}
+    dsql_endpoint: ${env:dsql_endpoint, ""}
+    dsql_region: ${env:dsql_region, "ap-northeast-2"}
     api_gateway_id:
       Ref: HttpApi
     # socket_api_gateway_id:
@@ -76,6 +79,7 @@ resources: # CloudFormation template syntax
                 - Effect: Allow
                   Action:
                     - sts:AssumeRole
+                    - dsql:DbConnectAdmin
                   Resource: "*"
     DataDDBTAble:
       Type: AWS::DynamoDB::Table

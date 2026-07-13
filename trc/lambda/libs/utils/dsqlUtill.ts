@@ -4,6 +4,9 @@ import { AwsCredentialIdentityProvider } from "@aws-sdk/types";
 
 class PostgreSQLDsqlUtil {
     private db: Knex | null = null;
+    private dbCreatedAt = 0;
+    private dbResetPromise: Promise<Knex> | null = null;
+    private readonly tokenRefreshMs = 12 * 60 * 1000;
     private endpoint: string;
     private region: string;
     private credential?: AwsCredentialIdentityProvider;
@@ -13,9 +16,12 @@ class PostgreSQLDsqlUtil {
         credential?: AwsCredentialIdentityProvider,
         region: string = "ap-northeast-2"
     ) {
-        this.endpoint = endpoint;
+        if (!endpoint?.trim()) {
+            throw new Error("dsql_endpoint is not configured");
+        }
+        this.endpoint = endpoint.trim();
         this.credential = credential;
-        this.region = region;
+        this.region = region.trim();
     }
 
     static async create(
@@ -28,7 +34,6 @@ class PostgreSQLDsqlUtil {
 
     private async generateToken(): Promise<string> {
         console.log("Generating token for DSQL connection...");
-        console.log(this.credential);
         let dsqlObject: any = {
             hostname: this.endpoint,
             region: this.region
@@ -43,7 +48,6 @@ class PostgreSQLDsqlUtil {
         try {
             // Use `getDbConnectAuthToken` if you are _not_ logging in as the `admin` user
             const token = await signer.getDbConnectAdminAuthToken();
-            console.log(token);
             return token;
         } catch (error) {
             console.log("Failed to generate token: ", error);
@@ -70,6 +74,56 @@ class PostgreSQLDsqlUtil {
         return newDB;
     }
 
+    private async destroyDbInstance(): Promise<void> {
+        const staleDb = this.db;
+        this.db = null;
+        this.dbCreatedAt = 0;
+        if (staleDb) {
+            try {
+                await staleDb.destroy();
+            } catch (error) {
+                console.warn("Failed to destroy stale DSQL connection", error);
+            }
+        }
+    }
+
+    private async resetDbInstance(): Promise<Knex> {
+        if (!this.dbResetPromise) {
+            this.dbResetPromise = (async () => {
+                await this.destroyDbInstance();
+                const newDb = await this.getNewDBInstance();
+                this.db = newDb;
+                this.dbCreatedAt = Date.now();
+                return newDb;
+            })().finally(() => {
+                this.dbResetPromise = null;
+            });
+        }
+        return this.dbResetPromise;
+    }
+
+    private async ensureDbInstance(): Promise<Knex> {
+        if (!this.db || !this.dbCreatedAt || Date.now() - this.dbCreatedAt >= this.tokenRefreshMs) {
+            return this.resetDbInstance();
+        }
+        return this.db;
+    }
+
+    private isDsqlConnectionError(error: any): boolean {
+        const message = `${error?.message ?? ""} ${error?.hint ?? ""}`.toLowerCase();
+        return ["28P01", "08006", "ECONNREFUSED"].includes(error?.code)
+            || message.includes("signature expired")
+            || message.includes("access denied")
+            || message.includes("unable to accept connection");
+    }
+
+    private applyOrder(queryPromise: any, order?: Array<[string, "asc" | "desc"]>): any {
+        for (const [column, direction] of order || []) {
+            queryPromise.orderBy(column, direction);
+        }
+        return queryPromise;
+    }
+
     // Password rotation 시 자동으로 새 DB 연결을 받아와서 재시도
     private async safeQueryPromise(queryPromise: any): Promise<any> {
         console.log('query:', queryPromise.toString());
@@ -77,19 +131,18 @@ class PostgreSQLDsqlUtil {
             return await queryPromise;
         } catch (error: any) {
             console.log('safeQueryPromise error', error);
-            if (error.code === '28P01' || error.code === 'ECONNREFUSED' || error.code == '08006') { // PostgreSQL access denied errors
-                this.db = await this.getNewDBInstance();
+            if (this.isDsqlConnectionError(error)) {
                 const query = queryPromise.toString();
-                const result = await this.db!.raw(query);
+                this.db = await this.resetDbInstance();
+                const result = await this.db.raw(query);
                 return result.rows;
-            } else {
-                throw error;
             }
+            throw error;
         }
     }
 
     async raw(query: string, transactionId?: string, returnEmpty?: boolean): Promise<any> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql raw() : ${query}`);
         let queryPromise = this.db.raw(query);
         const result = await this.safeQueryPromise(queryPromise);
@@ -98,7 +151,7 @@ class PostgreSQLDsqlUtil {
     }
 
     async create(table: string, createObject: Record<string, any>): Promise<any> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql create() table: ${table}, createObject: ${JSON.stringify(createObject)}`);
         let queryPromise = this.db.insert(createObject).into(table);
         const rows = await this.safeQueryPromise(queryPromise);
@@ -111,7 +164,7 @@ class PostgreSQLDsqlUtil {
         attributes: Array<string>,
         where: { [key: string]: any }
     ): Promise<{ [key: string]: any }> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql getOne() table: ${table}, attrs: ${attributes}, where: ${JSON.stringify(where)}`);
         let queryPromise = this.db
             .select(...attributes)
@@ -134,7 +187,7 @@ class PostgreSQLDsqlUtil {
         attributes: Array<string>,
         findOptions: { [key: string]: any }
     ): Promise<Array<{ [key: string]: any }>> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         if (findOptions.offset === undefined && findOptions.limit === undefined && findOptions.order === undefined && findOptions.where == undefined) {
             // offset, limit, order를 입력하지 않고 where만 들어가 있는 경우 처리
             findOptions.where = JSON.parse(JSON.stringify(findOptions));
@@ -144,7 +197,7 @@ class PostgreSQLDsqlUtil {
         console.log(`postgresql getMany() table: ${table}, attrs: ${attributes}, findOptions: ${JSON.stringify(findOptions)}`);
 
         let queryPromise = this.db.select(...attributes).from(table);
-        findOptions.order && queryPromise.orderBy(findOptions.order[0][0], findOptions.order[0][1]);
+        this.applyOrder(queryPromise, findOptions.order);
         findOptions.offset && queryPromise.offset(findOptions.offset);
         findOptions.limit && queryPromise.limit(findOptions.limit);
         findOptions.where &&
@@ -162,7 +215,7 @@ class PostgreSQLDsqlUtil {
     }
 
     async getCount(table: string, where: { [key: string]: any }): Promise<number> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql getCount() table: ${table}, where: ${JSON.stringify(where)}`);
 
         let queryPromise = this.db
@@ -189,7 +242,7 @@ class PostgreSQLDsqlUtil {
         updateObject: { [key: string]: any },
         where: { [key: string]: any }
     ): Promise<{ [key: string]: any }> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(
             `postgresql update() table: ${table}, attrs: ${JSON.stringify(updateObject)}, where: ${JSON.stringify(where)}`
         );
@@ -211,7 +264,7 @@ class PostgreSQLDsqlUtil {
         upsertObject: { [key: string]: any },
         duplicateWhere: { [key: string]: any }
     ): Promise<{ [key: string]: any } | number> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(
             `postgresql upsert() table: ${table}, upsertObject: ${JSON.stringify(upsertObject)}, duplicateWhere: ${duplicateWhere}`
         );
@@ -233,8 +286,11 @@ class PostgreSQLDsqlUtil {
     }
 
     async deleteOne(table: string, where: { [key: string]: any }): Promise<number> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql deleteOne() table: ${table}, where: ${JSON.stringify(where)}`);
+        if (Object.keys(where).length === 0) {
+            throw new Error("deleteOne requires at least one where condition");
+        }
 
         let queryPromise = this.db
             .from(table)
@@ -254,7 +310,7 @@ class PostgreSQLDsqlUtil {
     }
 
     async deleteMany(table: string, where: { [key: string]: any }): Promise<number> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql deleteMany() table: ${table},where: ${JSON.stringify(where)}`);
 
         let queryPromise = this.db
@@ -274,14 +330,14 @@ class PostgreSQLDsqlUtil {
     }
 
     async getSearch(table: string, attributes: Array<string>, findOptions: { [key: string]: any }): Promise<Array<{ [key: string]: any }>> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql getSearch() table: ${table}, attrs: ${attributes}, findOptions: ${JSON.stringify(findOptions)}`);
 
         let queryPromise = this.db.select(...attributes).from(table);
-        findOptions.order && queryPromise.orderBy(findOptions.order[0][0], findOptions.order[0][1]);
+        this.applyOrder(queryPromise, findOptions.order);
         findOptions.offset && queryPromise.offset(findOptions.offset);
         findOptions.limit && queryPromise.limit(findOptions.limit);
-        for (let whereLike of findOptions.whereLikes) {
+        for (let whereLike of findOptions.whereLikes || []) {
             const builderFunction = (builder: any) => {
                 for (const [key, value] of Object.entries(whereLike)) {
                     builder = builder.orWhereILike(key, value);
@@ -314,11 +370,11 @@ class PostgreSQLDsqlUtil {
     }
 
     async getSearchCount(table: string, findOptions: { [key: string]: any }): Promise<number> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(`postgresql getSearchCount() table: ${table}, findOptions: ${JSON.stringify(findOptions)}`);
 
         let queryPromise = this.db.count('*', { as: 'cnt' }).from(table);
-        for (let whereLike of findOptions.whereLikes) {
+        for (let whereLike of findOptions.whereLikes || []) {
             const builderFunction = (builder: any) => {
                 for (const [key, value] of Object.entries(whereLike)) {
                     builder = builder.orWhereILike(key, value);
@@ -362,7 +418,7 @@ class PostgreSQLDsqlUtil {
         attributes: Array<string>,
         findOptions: { [key: string]: any }
     ): Promise<Array<{ [key: string]: any }>> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log(
             `postgresql innerJoin() table: ${table1} & ${table2}, key: ${key1} & ${key2}, attrs: ${attributes}, findOptions: ${JSON.stringify(
                 findOptions
@@ -373,7 +429,7 @@ class PostgreSQLDsqlUtil {
             .select(...attributes)
             .from(table1)
             .innerJoin(table2, key1, key2);
-        findOptions.order && queryPromise.orderBy(findOptions.order[0][0], findOptions.order[0][1]);
+        this.applyOrder(queryPromise, findOptions.order);
         findOptions.offset && queryPromise.offset(findOptions.offset);
         findOptions.limit && queryPromise.limit(findOptions.limit);
         queryPromise.where((builder: any) => {
@@ -387,7 +443,7 @@ class PostgreSQLDsqlUtil {
 
     // parameter로 전달받은 table에서 where 조건에 해당하는 row들의 column value를 db의 현재 timestamp 값으로 업데이트한다.
     async updateTimestamp(table: string, column: string, where: { [key: string]: any }): Promise<any> {
-        this.db = this.db || (await this.getNewDBInstance());
+        this.db = await this.ensureDbInstance();
         console.log('[updateTimestamp parameters]', JSON.stringify({ table, column, where }));
         let queryPromise = this.db.from(table).where((builder: any) => {
             for (const filter of Object.entries(where)) {
