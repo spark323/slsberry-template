@@ -24,7 +24,7 @@
         "eslint-plugin-promise": "^6.0.0",
         "osls": "4.0.0",
         "serverless-cloudformation-sub-variables": "^0.2.1",
-        "serverless-deployment-bucket": "1.6.0",
+        "serverless-deployment-bucket": "git+https://github.com/spark323/serverless-deployment-bucket.git",
         "slsberry-tester": "0.0.8",
         "ts-jest": "^29.1.1",
         "ts-node": "^10.9.2",
